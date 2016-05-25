@@ -7,7 +7,7 @@
 //
 
 import Foundation
-
+import Dispatch
 /**
 An actor system has a tree like structure, ActorPath gives you an url like way to find an actor inside a given actor system.
 
@@ -58,7 +58,7 @@ public class ActorRef {
     - parameter msg : The message to send to the Actor.
     */
 
-    public func tell (msg : Actor.Message) -> Void {
+    public func tell (_ msg : Actor.Message) -> Void {
         self.context.tell(msg, recipient:self)
     }
     
@@ -69,7 +69,7 @@ The first rule about actors is that you should not access them directly, you alw
 */
 
 public class TestActorSystem : ActorSystem {
-    public override func actorForRef(ref : ActorRef) -> Optional<Actor> {
+    public override func actorForRef(_ ref : ActorRef) -> Optional<Actor> {
         return super.actorForRef(ref)
     }
 }
@@ -113,7 +113,7 @@ public class ActorSystem  {
     - parameter actorRef : the actorRef of the actor that you want to stop.
     */
     
-    public func stop(actorRef : ActorRef) -> Void {
+    public func stop(_ actorRef : ActorRef) -> Void {
         supervisor!.stop(actorRef)
     }
     
@@ -121,15 +121,17 @@ public class ActorSystem  {
         supervisor!.stop()
         //TODO: there must be a better way to wait for all actors to die...
         func shutdown(){
-            dispatch_after(5000, NSOperationQueue.mainQueue().underlyingQueue!) {[unowned self] () -> Void in
-                if(self.supervisor!.children.count == 0) {
+            // dispatch_after(5000, NSOperationQueue.mainQueue().underlyingQueue!) {[unowned self] () -> Void in
+            //     if(self.supervisor!.children.count == 0) {
+            //         self.supervisor = nil
+            //     }
+            // }
+            sleep(5)
+            if(self.supervisor!.children.count == 0) {
                     self.supervisor = nil
-                }
             }
         }
         shutdown()
-        
-        
     }
     
     /**
@@ -146,7 +148,7 @@ public class ActorSystem  {
      ```
     */
     
-    public func actorOf(clz : Actor.Type, name : String) -> ActorRef {
+    public func actorOf(_ clz : Actor.Type, name : String) -> ActorRef {
         return supervisor!.actorOf(clz, name: name)
     }
     
@@ -164,7 +166,7 @@ public class ActorSystem  {
      
     */
     
-    public func actorOf(clz : Actor.Type) -> ActorRef {
+    public func actorOf(_ clz : Actor.Type) -> ActorRef {
         return actorOf(clz, name: NSUUID.init().UUIDString)
     }
     
@@ -174,7 +176,7 @@ public class ActorSystem  {
      - parameter ref: reference to resolve
     */
     
-    private func actorForRef(ref : ActorRef) -> Optional<Actor> {
+    private func actorForRef(_ ref : ActorRef) -> Optional<Actor> {
         if let s = self.supervisor {
             return s.actorForRef(ref)
         } else {
@@ -189,7 +191,7 @@ public class ActorSystem  {
     - returns : an ActorRef or None
     */
     
-    public func selectActor(actorPath : String) -> Optional<ActorRef>{
+    public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
         return self.supervisor!.children[actorPath].map({ (a : Actor) -> ActorRef in return a.this})
     }
     
@@ -200,7 +202,7 @@ public class ActorSystem  {
     - parameter recipient : the ActorRef of the Actor that you want to receive the message.
     */
     
-    public func tell(msg : Actor.Message, recipient : ActorRef) -> Void {
+    public func tell(_ msg : Actor.Message, recipient : ActorRef) -> Void {
         
         if let actor = actorForRef(recipient) {
             actor.tell(msg)

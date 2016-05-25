@@ -14,7 +14,8 @@ extension Actor {
     Actor send and receive objects that must subclass Message, the Message class provides a sender, which Actors can use to reply.
     */
 
-    @objc public class Message : NSObject {
+    //@objc public class Message : NSObject {
+    public class Message : NSObject {
         
         /**
         The ActorRef of the Actor that sent this message

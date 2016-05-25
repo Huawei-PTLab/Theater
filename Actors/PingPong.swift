@@ -15,7 +15,7 @@ class Ping : Actor {
     
     var counter = 0
     
-    override func receive(msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) {
         switch(msg) {
             case is Ball:
                 counter += 1
@@ -32,7 +32,7 @@ class Ping : Actor {
 class Pong : Actor {
     var counter = 0
     
-    override func receive(msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) {
         switch(msg) {
         case is Ball:
             counter += 1
@@ -60,6 +60,9 @@ public class PingPong {
     
     func kickOffGame() {
         pong ! Ball(sender: ping)
+    }
+    func stop() {
+        system.stop();
     }
     
 }
