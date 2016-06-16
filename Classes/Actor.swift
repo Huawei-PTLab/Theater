@@ -117,7 +117,7 @@ public class Actor : NSObject {
     Here we save all the actor states
     */
 
-    final let statesStack : Stack<(String,Receive)> = Stack()
+    final public let statesStack : Stack<(String,Receive)> = Stack()
 
     /**
     Each actor has it's own mailbox to process Actor.Messages.
