@@ -1,11 +1,11 @@
 #!/bin/bash
 # usage:
 # 1) build theater
-# bash build-actor-example.sh Theater
+# bash env.sh Theater
 # 2) build PingPong
-# bash build-actor-example.sh Theater PingPong
-# 3) build ConsoleGreetingActor
-# bash build-actor-example.sh Theater ConsoleGreetingActor
+# bash env.sh Theater PingPong
+# 3) build GreetingActor
+# bash env.sh Theater GreetingActor
 
 mkdir -p build
 Theater() {
@@ -18,7 +18,8 @@ Theater() {
 								Classes/Actor.swift\
 								Classes/ActorSystem.swift\
 								Classes/Message.swift\
-								Classes/Stack.swift
+								Classes/Stack.swift\
+								Classes/NSOperationQueue.swift
 }
 
 
@@ -33,7 +34,7 @@ PingPong() {
 
 	./build/pingpong
 }
-ConsoleGreetingActor() {
+GreetingActor() {
 	~/app/swift/usr/bin/swiftc  -Xcc -fblocks -g \
 								-I build \
 								-L build \

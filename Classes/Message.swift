@@ -16,21 +16,21 @@ extension Actor {
 
     //@objc public class Message : NSObject {
     public class Message : NSObject {
-        
+
         /**
         The ActorRef of the Actor that sent this message
         */
-        
+
         public let sender : Optional<ActorRef>
-        
+
         /**
         The constuctor requires an Optional<ActorRef> to setup the sender
         */
-        
+
          public init(sender : Optional<ActorRef>) {
             self.sender = sender
         }
-        
+
     }
 
     /**
@@ -38,11 +38,11 @@ extension Actor {
     */
 
     public class Harakiri : Message {}
-    
+
     /**
      PoisonPill is the same than Harakiri but for Akka fans, like me.
      */
-    
+
     public class PoisonPill : Message {}
 
     /**
@@ -50,14 +50,14 @@ extension Actor {
     */
 
     public class MessageWithOperationId : Message {
-        
+
         /**
-         
+
         The operationId used to track the Operation
-         
+
         */
         public let operationId : NSUUID
-        
+
         public init(sender: Optional<ActorRef>, operationId : NSUUID) {
             self.operationId = operationId
             super.init(sender : sender)
@@ -69,9 +69,9 @@ extension Actor {
     */
 
     public class DeadLetter : Message {
-        
+
         public let message : Message
-        
+
         public init(message : Actor.Message, sender: Optional<ActorRef>) {
             self.message = message
             super.init(sender: sender)
@@ -79,4 +79,3 @@ extension Actor {
     }
 
 }
-
