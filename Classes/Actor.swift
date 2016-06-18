@@ -196,7 +196,9 @@ public class Actor : NSObject {
                 popToState(name: name)
             }
         } else {
-            print("unable to find state with name \(name)")
+            #if DEBUG
+                print("unable to find state with name \(name)")
+            #endif
         }
     }
 
@@ -225,7 +227,9 @@ public class Actor : NSObject {
             sender = nil
         default :
             if let (name,state) : (String,Receive) = self.statesStack.head() {
-                print("Sending message to state \(name)")
+                #if DEBUG
+                    print("Sending message to state \(name)")
+                #endif
                 state(msg)
             } else {
                 self.receive(msg)
@@ -242,8 +246,10 @@ public class Actor : NSObject {
 
     public func receive(_ msg : Actor.Message) -> Void {
         switch msg {
-            default :
+        default :
+            #if DEBUG
                 print("message not handled \(msg.dynamicType)")
+            #endif
         }
     }
 
@@ -259,7 +265,9 @@ public class Actor : NSObject {
         // }
         dispatch_async(underlyingQueue) { () in
             self.sender = msg.sender
-            print("\(self.sender?.path.asString) told \(msg) to \(self.this.path.asString)")
+            #if DEBUG
+                print("\(self.sender?.path.asString) told \(msg) to \(self.this.path.asString)")
+            #endif
             self.systemReceive(msg)
         }
     }
@@ -316,7 +324,9 @@ public class Actor : NSObject {
     }
 
     deinit {
-        print("killing \(self.this.path.asString)")
+        #if DEBUG
+            print("killing \(self.this.path.asString)")
+        #endif
     }
 
 }

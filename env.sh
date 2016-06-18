@@ -9,7 +9,7 @@
 
 mkdir -p build
 Theater() {
-	~/app/swift/usr/bin/swiftc  -Xcc -fblocks -g \
+	~/app/swift/usr/bin/swiftc  -Xcc -fblocks -g -Ounchecked \
     							-emit-library \
 								-emit-module \
 								-module-name Theater\

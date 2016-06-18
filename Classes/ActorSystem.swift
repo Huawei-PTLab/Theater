@@ -209,11 +209,16 @@ public class ActorSystem  {
         } else if let sender = msg.sender, _ = actorForRef(sender) {
             sender ! Actor.DeadLetter(message: msg, sender:recipient)
         } else {
-            print("Dropped message \(msg)")
+            #if DEBUG
+                print("Dropped message \(msg)")
+            #endif
         }
     }
     
     deinit {
-        print("killing ActorSystem: \(name)")
+        #if DEBUG
+            print("killing ActorSystem: \(name)")
+        #endif
+
     }
 }
