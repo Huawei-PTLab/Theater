@@ -296,7 +296,49 @@ public class Actor : NSObject {
         //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), underlyingQueue, block)
     }
+	/*
+		 Schedule Once is a timer that executes the code in block after seconds and can cancle
+	*/
+	public typealias Task = (cancel : Bool) -> Void
+    public func delay(time:NSTimeInterval, task: ()->() ) ->  Task? {     
+        
+        func dispatch_later(block:()-> ()) {
+            dispatch_after(
+                dispatch_time(
+                    DISPATCH_TIME_NOW,
+                    Int64(time * Double(NSEC_PER_SEC))),
+                self.underlyingQueue,
+                block)
+        }
 
+        var closure: dispatch_block_t? = task
+        var result: Task?
+
+        let delayedClosure: Task = {
+            cancel in
+            if let internalClosure = closure {
+                if (cancel == false) {                
+                    dispatch_async(self.underlyingQueue, internalClosure);
+                }
+            }
+            closure = nil
+            result = nil
+        }
+
+        result = delayedClosure
+
+        dispatch_later {
+            if let delayedClosure = result {            
+                delayedClosure(cancel: false)
+            }
+        }
+
+        return result;
+    }
+
+    public func cancel(task:Task?, cancle:Bool) {
+        task?(cancel: cancle)
+    }
     /**
     Default constructor used by the ActorSystem to create a new actor, you should not call this directly, use  actorOf in the ActorSystem to create a new actor
     */
