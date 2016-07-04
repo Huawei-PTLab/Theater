@@ -9,7 +9,7 @@
 
 mkdir -p build
 Theater() {
-	~/app/swift/usr/bin/swiftc  -Xcc -fblocks -g -Ounchecked \
+	swiftc  -Xcc -fblocks -g -Ounchecked \
     							-emit-library \
 								-emit-module \
 								-module-name Theater\
@@ -24,7 +24,7 @@ Theater() {
 
 
 PingPong() {
-	~/app/swift/usr/bin/swiftc  -Xcc -fblocks -g \
+	swiftc  -Xcc -fblocks -g \
 								-I build \
 								-L build \
 								-lTheater \
@@ -35,7 +35,7 @@ PingPong() {
 	./build/pingpong
 }
 GreetingActor() {
-	~/app/swift/usr/bin/swiftc  -Xcc -fblocks -g \
+	swiftc  -Xcc -fblocks -g \
 								-I build \
 								-L build \
 								-lTheater \
