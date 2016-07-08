@@ -27,8 +27,12 @@ public class ActorPath {
 'ActorRef' provides a reference to a given 'Actor', you should always talk to actors though it's ActorRef.
 */
 
-public class ActorRef {
-    
+public class ActorRef : CustomStringConvertible {
+    public var description : String {
+        get {
+            return "<\(self.dynamicType): \(path.asString)>"
+        }
+    }
 
     
     /**
