@@ -1,114 +1,51 @@
+# Theater: Actor Framework for Swift (and Do-lang) #
 
-<p align="center" >
-  <img src="theaterlogo.jpg" title="Theter logo" float=left>
-</p>
+Theater is an open source actor model framework for Swift (3.0), featuring lightweight implementation, user-friendly APIs, and more. 
 
-# Theater : iOS Actor Model Framework
-[![Build Status](https://travis-ci.org/darioalessandro/Theater.svg)](https://travis-ci.org/darioalessandro/Theater)
-[![Pod Version](http://img.shields.io/cocoapods/v/Theater.svg?style=flat)](http://cocoadocs.org/docsets/Theater/)
+The design is insipred by [Akka]("http://akka.io"), and this project is forked from [darioalessandro/Theater]("https://github.com/darioalessandro/Theater").
 
-Writing async, resilient and responsive applications is too hard. 
+# Build Theater #
 
-In the case of iOS, is because we've been using the wrong abstraction level: NSOperationQueues, dispatch_semaphore_create, dispatch_semaphore_wait and other low level GCD functions and structures.
+Current implementation targets `Ubuntu 15.10`.
 
-Using the Actor Model, we raise the abstraction level and provide a better platform to build correct concurrent and scalable applications.
+1. Install **swift** and **libdispatch**
 
-Theater is Open Source and available under the Apache 2 License.
+Install preview verison of [Swift 3.0]("https://swift.org/download/#previews")
 
-Theater is inspired by Akka.
+Compile and install **libdispatch**
 
-Twitter = [@TheaterFwk](https://twitter.com/TheaterFwk)
+	git clone --recursive -b experimenal/foundation https://github.com/apple/swift-corelibs-libdispatch.git
+	cd swift-corelibs-libdispatch
+	sh ./autogen.sh
+	./configure --with-swift-toolchain=<path-to-swift>/usr --prefix=<path-to-swift>/usr
+	make && make install
 
-### How to get started
+After installation, you should be able to see a `dispatch` folder under `<path-to-swift>/usr/lib/`. 
 
-- install via [CocoaPods](http://cocoapods.org)
+2. Compile Theater
 
-```ruby
-pod 'Theater'
-```
+Theater uses standard [swift package manager]("https://github.com/apple/swift-package-manager"):
 
-Actors should subclass the Actor class:
+	swift build -Xswiftc -Ounchecked -Xswiftc -g -Xcc -fblocks
 
-```swift
-  public class Dude : Actor {
-```
-In order to "listen" for messages, actors have to override the receive method:
-```swift
-  override public func receive(msg : Message) -> Void {
+The `-Ounchecked` and `-g` options are optional.
 
-  }
-```
+# Testing #
 
-In order to unwrap the message, you can use switch 
+Use the following command to build and test
 
-```swift
-override public func receive(msg : Message) -> Void {
-  switch (msg) {
-    case let m as Hi:
-      m.sender! ! Hello(sender: self.this)
-    case is Hello:
-      print("got Hello")
-    default:
-      print("what?")
-  }
-}
-```
+	swift build -Xswiftc -Ounchecked -Xswiftc -g -Xcc -fblocks && swift test
 
-All messages must subclass Message:
-```swift
+Current test suite includes:
 
-public class Hi : Message {}
- 
-public class Hello : Message {}
+* PingPong
+* Greetings
+* CloudEdge
 
-```
+# Features #
 
-Actors live inside an actor system, theater provides a default system
+TODO
 
-```swift
-  let system : ActorSystem = AppActorSystem.shared
-```
+# Usage #
 
-Putting in all together:
-
-```swift
-import Theater
- 
-public class Hi : Message {}
- 
-public class Hello : Message {}
- 
-public class Dude : Actor {
-    override public func receive(msg : Message) -> Void {
-        switch (msg) {
-            case let m as Hi:
-                m.sender! ! Hello(sender: self.this)
-            case is Hello:
-                print("got Hello")
-            default:
-                print("what?")
-        }
-    }
-}
-
-.
-.
-.
-(inside the app delegate)
-
-func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
-        
-        let system : ActorSystem = AppActorSystem.shared
-        
-        let dude1 = system.actorOf(Dude.self, name: "dude1")
-        let dude2 = system.actorOf(Dude.self, name: "dude2")
-        
-        dude2 ! Hi(sender : dude1)
-```
-
-The output will be:
-```swift
-Tell = Optional("dude1") <Actors.Hi: 0x7bf951a0> dude2 
-Tell = Optional("dude2") <Actors.Hello: 0x7be4bc00> dude1 
-got Hello
-```
+Check the examples in `Tests/Theater/` for sample usage.
