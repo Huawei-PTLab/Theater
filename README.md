@@ -8,7 +8,7 @@ The design is insipred by [Akka]("http://akka.io"), and this project is forked f
 
 Current implementation targets `Ubuntu 15.10`.
 
-1. Install **swift** and **libdispatch**
+## Install **swift** and **libdispatch**
 
 Install preview verison of [Swift 3.0]("https://swift.org/download/#previews")
 
@@ -22,7 +22,7 @@ Compile and install **libdispatch**
 
 After installation, you should be able to see a `dispatch` folder under `<path-to-swift>/usr/lib/`. 
 
-2. Compile Theater
+## Compile Theater
 
 Theater uses standard [swift package manager]("https://github.com/apple/swift-package-manager"):
 
