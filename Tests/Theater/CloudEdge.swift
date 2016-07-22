@@ -75,7 +75,7 @@ class Client: Actor {
     static let monitorPath = "\(systemName)/\(userName)/\(monitorName)"
     var server: ActorRef?
     var monitor: ActorRef?
-    required init(context: ActorSystem, ref: ActorRef) {
+    required init(context: ActorSystem, ref: ActorRef, args:[Any]! = nil) {
         super.init(context: context, ref: ref)
         server = self.context.selectActor(Client.serverPath)
         monitor = self.context.selectActor(Client.monitorPath)

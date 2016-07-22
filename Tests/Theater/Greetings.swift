@@ -16,7 +16,7 @@ class Happy : Actor.Message {}
 
 class GreetingActor: Actor {
 
-    required init(context: ActorSystem, ref: ActorRef) {
+    required init(context: ActorSystem, ref: ActorRef, args: [Any]! = nil) {
         super.init(context: context, ref: ref)
     }
 

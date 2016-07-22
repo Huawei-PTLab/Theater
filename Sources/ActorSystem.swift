@@ -28,12 +28,12 @@ public class ActorPath {
 */
 
 public class ActorRef : CustomStringConvertible {
-    public var description : String {
-        get {
-            return "<\(self.dynamicType): \(path.asString)>"
-        }
-    }
-
+    
+	public var description: String {
+		get {
+			return "<\(self.dynamicType): \(path.asString)>"
+		}
+	}
     
     /**
     The actor system that this ActorRef belongs to
@@ -46,6 +46,13 @@ public class ActorRef : CustomStringConvertible {
      */
     
     public let path : ActorPath
+
+	/**
+	 * Reference to the actual actor. 
+	 * Set in Actor init() and unset in deinit()
+	 * Use weak to break cycle between Actor and ActorRef
+	 */
+	internal weak var actorInstance: Actor? = nil
     
     /**
     This constructor is used by the ActorSystem, should not be used by developers
@@ -63,7 +70,7 @@ public class ActorRef : CustomStringConvertible {
     */
 
     public func tell (_ msg : Actor.Message) -> Void {
-        self.context.tell(msg, recipient:self)
+        self.context.tell(msg, recipientRef:self)
     }
     
 }
@@ -73,9 +80,6 @@ The first rule about actors is that you should not access them directly, you alw
 */
 
 public class TestActorSystem : ActorSystem {
-    public override func actorForRef(_ ref : ActorRef) -> Optional<Actor> {
-        return super.actorForRef(ref)
-    }
 }
 
 /**
@@ -91,6 +95,12 @@ For convenience, we provide AppActorSystem.shared which provides a default actor
 public class ActorSystem  {
     
     lazy private var supervisor : Actor? = Actor.self.init(context: self, ref: ActorRef(context: self, path: ActorPath(path: "\(self.name)/user")))
+
+	private let systemQueue = dispatch_queue_create("system", nil)
+	private var queues = [dispatch_queue_t]()
+	private var randomQueue: dispatch_queue_t? = nil
+	private let maxQueues: Int
+	private var queueCount = 0
     
     
     /**
@@ -107,9 +117,33 @@ public class ActorSystem  {
     - parameter name : The name of the ActorSystem
     */
     
-    public init(name : String) {
+    public init(name : String, maxQueues: Int = 1000) {
         self.name = name
+		self.maxQueues = maxQueues
+		srandom(UInt32(NSDate().timeIntervalSince1970))
     }
+
+	func getQueue() -> dispatch_queue_t {
+		if queueCount < maxQueues {
+			let newQueue = dispatch_queue_create("", nil)
+			if randomQueue == nil { randomQueue = newQueue }
+			queueCount += 1
+			dispatch_async(systemQueue) { () in 
+				self.queues.append(newQueue)
+				let randomNumber = Int(rand())
+				if randomNumber % 2 == 0 {
+					self.randomQueue = newQueue
+				}
+			}
+			return newQueue
+		} else {
+			dispatch_async(systemQueue) { () in 
+				let randomNumber = Int(rand()) % self.maxQueues
+				self.randomQueue = self.queues[randomNumber]
+			}
+			return randomQueue!
+		}
+	}
     
     /**
     This is used to stop or kill an actor
@@ -131,9 +165,10 @@ public class ActorSystem  {
             //     }
             // }
             sleep(5)
-            if(self.supervisor!.children.count == 0) {
-                    self.supervisor = nil
-            }
+			// TODO: not properly stop
+            // if(self.supervisor!.children.count == 0) {
+            //         self.supervisor = nil
+            // }
         }
         shutdown()
         
@@ -157,6 +192,10 @@ public class ActorSystem  {
     public func actorOf(_ clz : Actor.Type, name : String) -> ActorRef {
         return supervisor!.actorOf(clz, name: name)
     }
+
+	public func actorOf(_ clz: Actor.Type, name: String, args: [Any]! = nil) -> ActorRef {
+		return supervisor!.actorOf(clz, name: name, args: args)
+	}
     
     /**
      This method is used to instantiate actors using an Actor class as the 'blueprint' and assigning a unique name to it.
@@ -177,20 +216,6 @@ public class ActorSystem  {
     }
     
     /**
-    Private method to get the underlying actor given an actor ref, remember that you shoulf never access an actor directly other than for testing.
-     
-     - parameter ref: reference to resolve
-    */
-    
-    private func actorForRef(_ ref : ActorRef) -> Optional<Actor> {
-        if let s = self.supervisor {
-            return s.actorForRef(ref)
-        } else {
-            return nil
-        }
-    }
-    
-    /**
     This method tries finding an actor given it's actorpath as a string
      
     - Parameter actorPath : the actor path as string
@@ -198,6 +223,10 @@ public class ActorSystem  {
     */
     
     public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
+		dispatch_barrier_sync(self.supervisor!.underlyingQueue) { () in
+			// nothing, wait for enqueued changes to complete
+		}
+		//TODO: needs to find actors that are NOT attached to supervisor
         return self.supervisor!.children[actorPath].map({ (a : Actor) -> ActorRef in return a.this})
     }
     
@@ -208,16 +237,15 @@ public class ActorSystem  {
     - parameter recipient : the ActorRef of the Actor that you want to receive the message.
     */
     
-    public func tell(_ msg : Actor.Message, recipient : ActorRef) -> Void {
+    public func tell(_ msg : Actor.Message, recipientRef : ActorRef) -> Void {
         
-        if let actor = actorForRef(recipient) {
-            actor.tell(msg)
-        } else if let sender = msg.sender, _ = actorForRef(sender) {
-            sender ! Actor.DeadLetter(message: msg, sender:recipient)
-        } else {
+		if let actor = recipientRef.actorInstance {
+			actor.tell(msg)
+		} else {
             #if DEBUG
                 print("Dropped message \(msg)")
             #endif
+			print("[WARNING] fail to deliver message \(msg) to \(recipientRef.path.asString)")
         }
     }
     

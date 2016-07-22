@@ -54,22 +54,6 @@ Which will be called when some other actor tries to ! (tell) you something
 
 public class Actor : NSObject {
     
-    public func actorForRef(_ ref : ActorRef) -> Optional<Actor> {
-        let path = ref.path.asString
-        if path == this.path.asString {
-            return self
-        }else if let selected = self.children[path] {
-            return selected
-        } else {
-            //TODO: this is expensive and wasteful
-            let recursiveSearch = self.children.map({return $0.1.actorForRef(ref)})
-            
-            let withoutOpt = recursiveSearch.filter({return $0 != nil}).flatMap({return $0})
-            
-            return withoutOpt.first
-        }
-    }
-
     public func stop() {
         this ! Harakiri(sender:nil)
     }
@@ -78,6 +62,7 @@ public class Actor : NSObject {
         // self.mailbox.addOperationWithBlock { () -> Void in
         //     let path = actorRef.path.asString
         //     self.children.removeValueForKey(path)
+		// TODO: not properly stop
         dispatch_async(underlyingQueue) { () -> Void in
             let path = actorRef.path.asString
             self.children.removeValue(forKey: path)
@@ -89,14 +74,28 @@ public class Actor : NSObject {
     }
 
     public func actorOf(_ clz : Actor.Type, name : String) -> ActorRef {
-        
         //TODO: should we kill or throw an error when user wants to reuse address of actor?
         let completePath = "\(self.this.path.asString)/\(name)"
         let ref = ActorRef(context:self.context, path:ActorPath(path:completePath))
-        let actorInstance : Actor = clz.init(context: self.context, ref: ref)
-        self.children[completePath] = actorInstance
+		let actorInstance: Actor = clz.init(context: self.context, ref: ref)
+		dispatch_async(underlyingQueue) { () in 
+			self.children[completePath] = actorInstance
+		}
         return ref
     }
+
+	/*
+	 * Pass parameters to Actor constructor
+	 */
+	public func actorOf(_ clz: Actor.Type, name: String, args: [Any]! = nil) -> ActorRef {
+		let completePath = "\(self.this.path.asString)/\(name)"
+		let ref = ActorRef(context: self.context, path: ActorPath(path: completePath))
+		let actorInstance: Actor = clz.init(context: self.context, ref: ref, args: args)
+		dispatch_async(underlyingQueue) { () in
+			self.children[completePath] = actorInstance
+		}
+		return ref
+	}
     
     /**
      
@@ -343,32 +342,37 @@ public class Actor : NSObject {
     Default constructor used by the ActorSystem to create a new actor, you should not call this directly, use  actorOf in the ActorSystem to create a new actor
     */
     
-    required public init(context : ActorSystem, ref : ActorRef) {
+    required public init(context : ActorSystem, ref : ActorRef, args: [Any]! = nil) {
         // mailbox.maxConcurrentOperationCount = 1 //serial queue
         // mailbox.underlyingQueue = dispatch_queue_create(ref.path.asString, nil)
-        underlyingQueue = dispatch_queue_create(ref.path.asString, nil)
+        // underlyingQueue = dispatch_queue_create(ref.path.asString, nil)
+		underlyingQueue = context.getQueue()
         sender = nil
         self.context = context
         self.this = ref
         super.init()
+		self.this.actorInstance = self
         self.preStart()
     }
     
     public init(_ context : ActorSystem) {
         // mailbox.maxConcurrentOperationCount = 1 //serial queue
         // mailbox.underlyingQueue = dispatch_queue_create("", nil)
-        underlyingQueue = dispatch_queue_create("", nil)
+        // underlyingQueue = dispatch_queue_create("", nil)
+		underlyingQueue = context.getQueue()
         sender = nil
         self.context = context
         self.this = ActorRef(context: context, path: ActorPath(path: ""))
         super.init()
+		self.this.actorInstance = self
         self.preStart()
     }
-    
+
     deinit {
         #if DEBUG
             print("killing \(self.this.path.asString)")
         #endif
+		self.this.actorInstance = nil
     }
 
 }
