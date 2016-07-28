@@ -17,46 +17,46 @@ Theater() {
 			-module-name Theater\
 			-emit-module-path=build/Theater.swiftmodule\
 			-o build/libTheater.so\
-			Classes/Actor.swift\
-			Classes/ActorSystem.swift\
-			Classes/Message.swift\
-			Classes/Stack.swift\
-			Classes/NSOperationQueue.swift
+			Sources/Actor.swift\
+			Sources/ActorSystem.swift\
+			Sources/Message.swift\
+			Sources/Stack.swift\
+			Sources/NSOperationQueue.swift
 }
 
 
-PingPong() {
-	swiftc  -Xcc -fblocks -g \
-			-I build \
-			-L build \
-			-lTheater \
-			-Xlinker -rpath -Xlinker $PWD/build\
-			-o build/pingpong\
-			Actors/PingPong.swift
+# PingPong() {
+# 	swiftc  -Xcc -fblocks -g \
+# 			-I build \
+# 			-L build \
+# 			-lTheater \
+# 			-Xlinker -rpath -Xlinker $PWD/build\
+# 			-o build/pingpong\
+# 			Actors/PingPong.swift
 
-	./build/pingpong
-}
-GreetingActor() {
-	swiftc  -Xcc -fblocks -g \
-			-I build \
-			-L build \
-			-lTheater \
-			-Xlinker -rpath -Xlinker $PWD/build\
-			-o build/ConsoleGreetingActor\
-			Actors/ConsoleGreetingActor.swift
-	./build/ConsoleGreetingActor
-}
+# 	./build/pingpong
+# }
+# GreetingActor() {
+# 	swiftc  -Xcc -fblocks -g \
+# 			-I build \
+# 			-L build \
+# 			-lTheater \
+# 			-Xlinker -rpath -Xlinker $PWD/build\
+# 			-o build/ConsoleGreetingActor\
+# 			Actors/ConsoleGreetingActor.swift
+# 	./build/ConsoleGreetingActor
+# }
 
-CloudEdgeUSN(){
-	swiftc -Xcc -fblocks -g  -Ounchecked\
-		   -I build/ \
-		   -L build \
-		   -Xlinker -lTheater\
-		   -Xlinker --rpath -Xlinker $PWD/build\
-		   -o build/CloudEdgeUSN\
-		   Actors/CloudEdgeUSN.swift
-	./build/CloudEdgeUSN 10
-}
+# CloudEdgeUSN(){
+# 	swiftc -Xcc -fblocks -g  -Ounchecked\
+# 		   -I build/ \
+# 		   -L build \
+# 		   -Xlinker -lTheater\
+# 		   -Xlinker --rpath -Xlinker $PWD/build\
+# 		   -o build/CloudEdgeUSN\
+# 		   Actors/CloudEdgeUSN.swift
+# 	./build/CloudEdgeUSN 10
+# }
 while [ -n "$1" ]; do
     printf "====================%s====================\n" "$1"
     $1
