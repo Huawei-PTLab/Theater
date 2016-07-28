@@ -69,7 +69,7 @@ public class ActorRef : CustomStringConvertible {
     - parameter msg : The message to send to the Actor.
     */
 
-    public func tell (_ msg : Actor.Message) -> Void {
+    public func tell (_ msg : Unmanaged<Actor.Message>) -> Void {
         self.context.tell(msg, recipientRef:self)
     }
     
@@ -237,7 +237,7 @@ public class ActorSystem  {
     - parameter recipient : the ActorRef of the Actor that you want to receive the message.
     */
     
-    public func tell(_ msg : Actor.Message, recipientRef : ActorRef) -> Void {
+    public func tell(_ msg : Unmanaged<Actor.Message>, recipientRef : ActorRef) -> Void {
         
 		if let actor = recipientRef.actorInstance {
 			actor.tell(msg)

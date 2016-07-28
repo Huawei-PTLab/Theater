@@ -27,7 +27,8 @@ infix operator ! {associativity left precedence 130}
  */
 
 public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
-    actorRef.tell(msg)
+	let unmanaged = Unmanaged.passRetained(msg)
+    actorRef.tell(unmanaged)
 }
 
 public typealias Receive = (Actor.Message) -> (Void)
@@ -129,7 +130,7 @@ public class Actor : NSObject {
     Sender has a reference to the last actor ref that sent this actor a message
     */
     
-    public var sender : Optional<ActorRef>
+    // public var sender : Optional<ActorRef>
     
     /**
     Reference to the ActorRef of the current actor
@@ -215,25 +216,26 @@ public class Actor : NSObject {
     This method handles all the system related messages, if the message is not system related, then it calls the state at the head position of the statesstack, if the stack is empty, then it calls the receive method
     */
      
-    final public func systemReceive(_ msg : Actor.Message) -> Void {
-        switch msg {
+    final public func systemReceive(_ msg : Unmanaged<Actor.Message>) -> Void {
+		let realMsg = msg.takeUnretainedValue()
+        switch realMsg {
         case is Harakiri, is PoisonPill:
             self.willStop()
             self.children.forEach({ (_,actor) in
                 actor.this ! Harakiri(sender:this)
             })
             self.context.stop(self.this)
-            sender = nil
+            // sender = nil
         default :
             if let (name,state) : (String,Receive) = self.statesStack.head() {
                 #if DEBUG
                     print("Sending message to state \(name)")
                 #endif
-                state(msg)
+                state(realMsg)
             } else {
-                self.receive(msg)
+                self.receive(realMsg)
             }
-            sender = nil
+            // sender = nil
         }
     }
     
@@ -256,14 +258,15 @@ public class Actor : NSObject {
     This method is used by the ActorSystem to communicate with the actors, do not override.
     */
     
-    final public func tell(_ msg : Actor.Message) -> Void {
+    final public func tell(_ msg : Unmanaged<Actor.Message>) -> Void {
         // mailbox.addOperationWithBlock { () in
         //     self.sender = msg.sender
         //     print("\(self.sender?.path.asString) told \(msg) to \(self.this.path.asString)")
         //     self.systemReceive(msg)
         // }
         dispatch_async(underlyingQueue) { () in
-            self.sender = msg.sender
+			// let realMsg = msg.takeUnretainedValue()
+            // self.sender = realMsg.sender
             #if DEBUG
                 print("\(self.sender?.path.asString) told \(msg) to \(self.this.path.asString)")
             #endif
@@ -347,7 +350,7 @@ public class Actor : NSObject {
         // mailbox.underlyingQueue = dispatch_queue_create(ref.path.asString, nil)
         // underlyingQueue = dispatch_queue_create(ref.path.asString, nil)
 		underlyingQueue = context.getQueue()
-        sender = nil
+        // sender = nil
         self.context = context
         self.this = ref
         super.init()
@@ -360,7 +363,7 @@ public class Actor : NSObject {
         // mailbox.underlyingQueue = dispatch_queue_create("", nil)
         // underlyingQueue = dispatch_queue_create("", nil)
 		underlyingQueue = context.getQueue()
-        sender = nil
+        // sender = nil
         self.context = context
         self.this = ActorRef(context: context, path: ActorPath(path: ""))
         super.init()
