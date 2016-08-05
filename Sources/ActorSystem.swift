@@ -8,79 +8,7 @@
 
 import Foundation
 import Dispatch
-/**
-An actor system has a tree like structure, ActorPath gives you an url like way to find an actor inside a given actor system.
 
-@warning: We still do not support multiple levels of actors. Currently all actors are direct children of the ActorSystem that it belongs to.
-*/
-
-public class ActorPath {
-    
-    public let asString : String
-    
-    public init(path : String) {
-        self.asString = path
-    }
-}
-
-/**
-'ActorRef' provides a reference to a given 'Actor', you should always talk to actors though it's ActorRef.
-*/
-
-public class ActorRef : CustomStringConvertible {
-    
-	public var description: String {
-		get {
-			return "<\(self.dynamicType): \(path.asString)>"
-		}
-	}
-    
-    /**
-    The actor system that this ActorRef belongs to
-    */
-    
-    public let context : ActorSystem
-    
-    /**
-     The Path to this ActorRef
-     */
-    
-    public let path : ActorPath
-
-	/**
-	 * Reference to the actual actor. 
-	 * Set in Actor init() and unset in deinit()
-	 * Use weak to break cycle between Actor and ActorRef
-	 */
-	internal weak var actorInstance: Actor? = nil
-    
-    /**
-    This constructor is used by the ActorSystem, should not be used by developers
-    */
-    
-    public init(context : ActorSystem, path : ActorPath) {
-        self.context = context
-        self.path = path
-    }
-    
-    /**
-    This method is used to send a message to the underlying Actor.
-     
-    - parameter msg : The message to send to the Actor.
-    */
-
-    public func tell (_ msg : Unmanaged<Actor.Message>) -> Void {
-        self.context.tell(msg, recipientRef:self)
-    }
-    
-}
-
-/**
-The first rule about actors is that you should not access them directly, you always talk to them through it's ActorRef, but for testing sometimes is really convenient to just get the actor and inspect it's properties, that is the reason why we provide 'TestActorSystem' please do not use it in your AppCode, only in tests.
-*/
-
-public class TestActorSystem : ActorSystem {
-}
 
 /**
 
@@ -94,36 +22,32 @@ For convenience, we provide AppActorSystem.shared which provides a default actor
 
 public class ActorSystem  {
     
-    lazy private var supervisor : Actor? = Actor.self.init(context: self, ref: ActorRef(context: self, path: ActorPath(path: "\(self.name)/user")))
+    // lazy private var supervisor : Actor? = Actor.self.init(context: self, ref: ActorRef(context: self, path: ActorPath(path: "\(self.name)/user")))
 
-	private let systemQueue = dispatch_queue_create("system", nil)
-	private var queues = [dispatch_queue_t]()
-	private var randomQueue: dispatch_queue_t? = nil
-	private let maxQueues: Int
-	private var queueCount = 0
+	static let systemQueue = dispatch_queue_create("system", nil)
+	static var queues = [dispatch_queue_t]()
+	static var randomQueue: dispatch_queue_t? = nil
+	static let maxQueues = 10000
+	static var queueCount = 0
     
     
     /**
-     
-    The name of the 'ActorSystem'
-     
+		The name of the 'ActorSystem'
     */
     
     let name : String
     
     /**
-    Create a new actor system
+		Create a new actor system
      
-    - parameter name : The name of the ActorSystem
+		- parameter name : The name of the ActorSystem
     */
-    
     public init(name : String, maxQueues: Int = 1000) {
         self.name = name
-		self.maxQueues = maxQueues
 		srandom(UInt32(NSDate().timeIntervalSince1970))
     }
 
-	func getQueue() -> dispatch_queue_t {
+	class func getQueue() -> dispatch_queue_t {
 		if queueCount < maxQueues {
 			let newQueue = dispatch_queue_create("", nil)
 			if randomQueue == nil { randomQueue = newQueue }
@@ -152,25 +76,26 @@ public class ActorSystem  {
     */
     
     public func stop(_ actorRef : ActorRef) -> Void {
-        supervisor!.stop(actorRef)
+        // supervisor!.stop(actorRef)	//TODO
     }
     
+	//TODO
     public func stop() {
-        supervisor!.stop()
-        //TODO: there must be a better way to wait for all actors to die...
-        func shutdown(){
-            // dispatch_after(5000, NSOperationQueue.mainQueue().underlyingQueue!) {[unowned self] () -> Void in
-            //     if(self.supervisor!.children.count == 0) {
-            //         self.supervisor = nil
-            //     }
-            // }
-            sleep(5)
-			// TODO: not properly stop
-            // if(self.supervisor!.children.count == 0) {
-            //         self.supervisor = nil
-            // }
-        }
-        shutdown()
+        // supervisor!.stop()
+        // //TODO: there must be a better way to wait for all actors to die...
+        // func shutdown(){
+        //     // dispatch_after(5000, NSOperationQueue.mainQueue().underlyingQueue!) {[unowned self] () -> Void in
+        //     //     if(self.supervisor!.children.count == 0) {
+        //     //         self.supervisor = nil
+        //     //     }
+        //     // }
+        //     sleep(5)
+			// // TODO: not properly stop
+        //     // if(self.supervisor!.children.count == 0) {
+        //     //         self.supervisor = nil
+        //     // }
+        // }
+        // shutdown()
         
         
     }
@@ -189,13 +114,15 @@ public class ActorSystem  {
      ```
     */
     
-    public func actorOf(_ clz : Actor.Type, name : String) -> ActorRef {
-        return supervisor!.actorOf(clz, name: name)
-    }
+	// TODO
+    // public func actorOf(_ clz : Actor.Type, name : String) -> ActorRef {
+    //     return supervisor!.actorOf(clz, name: name)
+    // }
 
-	public func actorOf(_ clz: Actor.Type, name: String, args: [Any]! = nil) -> ActorRef {
-		return supervisor!.actorOf(clz, name: name, args: args)
-	}
+	// TODO
+	// public func actorOf(_ clz: Actor.Type, name: String, args: [Any]! = nil) -> ActorRef {
+	// 	return supervisor!.actorOf(clz, name: name, args: args) 
+	// }
     
     /**
      This method is used to instantiate actors using an Actor class as the 'blueprint' and assigning a unique name to it.
@@ -211,9 +138,10 @@ public class ActorSystem  {
      
     */
     
-    public func actorOf(_ clz : Actor.Type) -> ActorRef {
-        return actorOf(clz, name: NSUUID.init().UUIDString)
-    }
+	// TODO
+    // public func actorOf(_ clz : Actor.Type) -> ActorRef {
+    //     return actorOf(clz, name: NSUUID.init().UUIDString)
+    // }
     
     /**
     This method tries finding an actor given it's actorpath as a string
@@ -222,13 +150,14 @@ public class ActorSystem  {
     - returns : an ActorRef or None
     */
     
-    public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
-		dispatch_barrier_sync(self.supervisor!.underlyingQueue) { () in
-			// nothing, wait for enqueued changes to complete
-		}
-		//TODO: needs to find actors that are NOT attached to supervisor
-        return self.supervisor!.children[actorPath].map({ (a : Actor) -> ActorRef in return a.this})
-    }
+	// TODO
+    // public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
+		// dispatch_barrier_sync(self.supervisor!.underlyingQueue) { () in
+			// // nothing, wait for enqueued changes to complete
+		// }
+		// //TODO: needs to find actors that are NOT attached to supervisor
+    //     return self.supervisor!.children[actorPath].map({ (a : Actor) -> ActorRef in return a.this})
+    // }
     
     /**
     All messages go through this method, eventually we will create an scheduler
@@ -237,17 +166,17 @@ public class ActorSystem  {
     - parameter recipient : the ActorRef of the Actor that you want to receive the message.
     */
     
-    public func tell(_ msg : Unmanaged<Actor.Message>, recipientRef : ActorRef) -> Void {
+    // public func tell(_ msg : Unmanaged<Actor.Message>, recipientRef : ActorRef) -> Void {
         
-		if let actor = recipientRef.actorInstance {
-			actor.tell(msg)
-		} else {
-            #if DEBUG
-                print("Dropped message \(msg)")
-            #endif
-			print("[WARNING] fail to deliver message \(msg) to \(recipientRef.path.asString)")
-        }
-    }
+		// if let actor = recipientRef.actorInstance {
+			// actor.tell(msg)
+		// } else {
+    //         #if DEBUG
+    //             print("Dropped message \(msg)")
+    //         #endif
+			// print("[WARNING] fail to deliver message \(msg) to \(recipientRef.path.asString)")
+    //     }
+    // }
     
     deinit {
         #if DEBUG
@@ -255,4 +184,11 @@ public class ActorSystem  {
         #endif
 
     }
+}
+
+/**
+The first rule about actors is that you should not access them directly, you always talk to them through it's ActorRef, but for testing sometimes is really convenient to just get the actor and inspect it's properties, that is the reason why we provide 'TestActorSystem' please do not use it in your AppCode, only in tests.
+*/
+
+public class TestActorSystem : ActorSystem {
 }
