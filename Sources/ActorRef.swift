@@ -30,12 +30,9 @@ public class ActorRef: CustomStringConvertible {
 		}
 	}
     
-	/**
-		Supervisor is responsible for managing life cycle of this actor
-	
-		Conceptually, supervisor can be changed, hence we use `var`.
-    */
-	internal var supervisor: ActorRef
+	internal let context: ActorSystem
+
+	internal var supervisor: ActorRef?
 
 	internal var children: [String : ActorRef] = [String : ActorRef]()
 
@@ -47,7 +44,7 @@ public class ActorRef: CustomStringConvertible {
 	/**
 		Reference to the actual actor.
 	 */
-	internal var actorInstance: Actor
+	internal var actorInstance: Actor	
 
 	/**
 		A backup of the actual actor instance, in case actor crashes.
@@ -57,13 +54,24 @@ public class ActorRef: CustomStringConvertible {
 	// private var backup: Actor 
     
 	/**
-		Called only by Actor.actorOf
+		Called by Actor.actorOf
 	*/
-    internal init(path : ActorPath, actorInstance: Actor, supervisor: ActorRef) {
+    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem, supervisor: ActorRef) {
         self.path = path
 		self.actorInstance = actorInstance
-		// self.backup = actorInstance.copy() as! Actor 	// TODO: check the usage of copy()
+		self.context = context
 		self.supervisor = supervisor
+		// self.backup = actorInstance.copy() as! Actor 	// TODO: check the usage of copy()
+    }
+
+	/**
+		Called by ActorSystem to create root supervisor.
+	*/
+    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem) {
+        self.path = path
+		self.actorInstance = actorInstance
+		self.context = context
+		self.supervisor = nil
     }
     
     /**

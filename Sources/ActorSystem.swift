@@ -11,93 +11,47 @@ import Dispatch
 
 
 /**
+	All actors live in 'ActorSystem'.
 
-All actors live in 'ActorSystem'.
-
-You might have more than 1 actor system.
-
-For convenience, we provide AppActorSystem.shared which provides a default actor system.
-
+	You might have more than 1 actor system.
 */
-
 public class ActorSystem  {
     
-    // lazy private var supervisor : Actor? = Actor.self.init(context: self, ref: ActorRef(context: self, path: ActorPath(path: "\(self.name)/user")))
+    lazy private var supervisor: ActorRef = Actor.createSupervisorActor(name: self.name, context: self)
 
-	static let systemQueue = dispatch_queue_create("system", nil)
-	static var queues = [dispatch_queue_t]()
-	static var randomQueue: dispatch_queue_t? = nil
-	static let maxQueues = 10000
-	static var queueCount = 0
-    
-    
     /**
 		The name of the 'ActorSystem'
     */
-    
-    let name : String
-    
+	private let name : String
+
+	private let dispatcher: Dispatcher
+
     /**
 		Create a new actor system
      
 		- parameter name : The name of the ActorSystem
     */
-    public init(name : String, maxQueues: Int = 1000) {
+    public init(name : String, dispatcher: Dispatcher = DefaultDispatcher()) {
         self.name = name
-		srandom(UInt32(NSDate().timeIntervalSince1970))
+		self.dispatcher = dispatcher
     }
 
-	class func getQueue() -> dispatch_queue_t {
-		if queueCount < maxQueues {
-			let newQueue = dispatch_queue_create("", nil)
-			if randomQueue == nil { randomQueue = newQueue }
-			queueCount += 1
-			dispatch_async(systemQueue) { () in 
-				self.queues.append(newQueue)
-				let randomNumber = Int(rand())
-				if randomNumber % 2 == 0 {
-					self.randomQueue = newQueue
-				}
-			}
-			return newQueue
-		} else {
-			dispatch_async(systemQueue) { () in 
-				let randomNumber = Int(rand()) % self.maxQueues
-				self.randomQueue = self.queues[randomNumber]
-			}
-			return randomQueue!
-		}
+	internal func assignQueue() -> dispatch_queue_t {
+		return dispatcher.assignQueue()
 	}
     
     /**
-    This is used to stop or kill an actor
+		This is used to stop or kill an actor
      
-    - parameter actorRef : the actorRef of the actor that you want to stop.
+		- parameter actorRef : the actorRef of the actor that you want to stop.
     */
-    
     public func stop(_ actorRef : ActorRef) -> Void {
         // supervisor!.stop(actorRef)	//TODO
     }
     
 	//TODO
     public func stop() {
-        // supervisor!.stop()
-        // //TODO: there must be a better way to wait for all actors to die...
-        // func shutdown(){
-        //     // dispatch_after(5000, NSOperationQueue.mainQueue().underlyingQueue!) {[unowned self] () -> Void in
-        //     //     if(self.supervisor!.children.count == 0) {
-        //     //         self.supervisor = nil
-        //     //     }
-        //     // }
-        //     sleep(5)
-			// // TODO: not properly stop
-        //     // if(self.supervisor!.children.count == 0) {
-        //     //         self.supervisor = nil
-        //     // }
-        // }
-        // shutdown()
-        
-        
+		supervisor ! Actor.Harakiri(sender: nil)
     }
     
     /**
@@ -113,16 +67,9 @@ public class ActorSystem  {
      var wsCtrl : ActorRef = actorSystem.actorOf(WSRViewController.self, name:  "WSRViewController")
      ```
     */
-    
-	// TODO
-    // public func actorOf(_ clz : Actor.Type, name : String) -> ActorRef {
-    //     return supervisor!.actorOf(clz, name: name)
-    // }
-
-	// TODO
-	// public func actorOf(_ clz: Actor.Type, name: String, args: [Any]! = nil) -> ActorRef {
-	// 	return supervisor!.actorOf(clz, name: name, args: args) 
-	// }
+    public func actorOf(_ actorInstance : Actor, name : String) -> ActorRef {
+        return supervisor.actorInstance.actorOf(actorInstance, name: name)
+    }
     
     /**
      This method is used to instantiate actors using an Actor class as the 'blueprint' and assigning a unique name to it.
@@ -137,52 +84,18 @@ public class ActorSystem  {
      ```
      
     */
+    public func actorOf(_ actorInstance : Actor) -> ActorRef {
+		return supervisor.actorInstance.actorOf(actorInstance)
+    }
     
-	// TODO
-    // public func actorOf(_ clz : Actor.Type) -> ActorRef {
-    //     return actorOf(clz, name: NSUUID.init().UUIDString)
-    // }
-    
-    /**
-    This method tries finding an actor given it's actorpath as a string
-     
-    - Parameter actorPath : the actor path as string
-    - returns : an ActorRef or None
-    */
-    
-	// TODO
-    // public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
-		// dispatch_barrier_sync(self.supervisor!.underlyingQueue) { () in
-			// // nothing, wait for enqueued changes to complete
-		// }
-		// //TODO: needs to find actors that are NOT attached to supervisor
-    //     return self.supervisor!.children[actorPath].map({ (a : Actor) -> ActorRef in return a.this})
-    // }
-    
-    /**
-    All messages go through this method, eventually we will create an scheduler
-     
-    - parameter msg : message to send
-    - parameter recipient : the ActorRef of the Actor that you want to receive the message.
-    */
-    
-    // public func tell(_ msg : Unmanaged<Actor.Message>, recipientRef : ActorRef) -> Void {
-        
-		// if let actor = recipientRef.actorInstance {
-			// actor.tell(msg)
-		// } else {
-    //         #if DEBUG
-    //             print("Dropped message \(msg)")
-    //         #endif
-			// print("[WARNING] fail to deliver message \(msg) to \(recipientRef.path.asString)")
-    //     }
-    // }
+    public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
+		return try? self.supervisor.actorInstance.selectActor(pathString: actorPath)
+    }
     
     deinit {
         #if DEBUG
             print("killing ActorSystem: \(name)")
         #endif
-
     }
 }
 

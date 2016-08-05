@@ -56,7 +56,7 @@ public class Actor: NSObject {
     /**
 		Each actor has it's own mailbox to process Actor.Messages.
     */
-    final public let underlyingQueue: dispatch_queue_t
+    final internal var underlyingQueue: dispatch_queue_t! = nil
     
     /**
 		Reference to the ActorRef of the current actor
@@ -77,7 +77,6 @@ public class Actor: NSObject {
     }
     
     public func stop(_ actorRef : ActorRef) -> Void {
-		// TODO: not properly stop
         dispatch_async(underlyingQueue) { () -> Void in
             // let path = actorRef.path.asString	//TODO
             // self.children.removeValue(forKey: path)	// TODO
@@ -87,34 +86,68 @@ public class Actor: NSObject {
 	/** 
 		Generate a random name for the new actor
 	*/
-    public func actorOf(_ actorInstance : Actor, supervisor: ActorRef) -> ActorRef {
-        return actorOf(actorInstance, name: NSUUID.init().UUIDString, supervisor: supervisor)
+    public func actorOf(_ actorInstance : Actor) -> ActorRef {
+        return actorOf(actorInstance, name: NSUUID.init().UUIDString)
     }
 
 	/**
 		Pass in a new actor instance, wrap it with ActorRef and return the
 		ActorRef
 	*/
-    public func actorOf(_ actorInstance : Actor, name : String, supervisor: ActorRef) -> ActorRef {
+    public func actorOf(_ actorInstance : Actor, name : String) -> ActorRef {
         //TODO: should we kill or throw an error when user wants to reuse address of actor?
         let completePath = "\(self.this.path.asString)/\(name)"
-        let ref = ActorRef(path:ActorPath(path:completePath), actorInstance: actorInstance, supervisor: supervisor)
-		self._ref = ref
+        let ref = ActorRef(
+			path:ActorPath(path:completePath), 
+			actorInstance: actorInstance, 
+			context: this.context
+			)
+		actorInstance._ref = ref
+		actorInstance.underlyingQueue = this.context.assignQueue()
 		dispatch_async(underlyingQueue) { () in 
 			self.this.children[completePath] = ref
 		}
         return ref
     }
 
+	internal class func createSupervisorActor(name: String, context: ActorSystem) -> ActorRef {
+		let supervisorActor = Actor()
+		let ref = ActorRef(
+			path: ActorPath(path: "\(name)/user"), 
+			actorInstance: supervisorActor,
+			context: context
+			)
+		supervisorActor._ref = ref
+		supervisorActor.underlyingQueue = context.assignQueue()
+		return ref
+	}
+
+	public func selectActor(pathString: String) throws -> ActorRef {
+		guard pathString.hasPrefix(this.path.asString) else {
+			throw InternalError.noSuchChild(pathString: pathString)
+		}
+		dispatch_barrier_sync(underlyingQueue) { () in
+			// nothing, wait for enqueued changes to complete
+		}
+		if pathString == this.path.asString {
+			return this
+		} else {
+			let nextIdx = this.path.asString.characters.split(separator: "/").count + 1
+			let nextPath: String = 
+   				"\(this.path.asString)/\(pathString.characters.split(separator: "/").map(String.init)[nextIdx])"
+			let next: ActorRef? = this.children[nextPath]
+			if let nextNode = next {
+				return try nextNode.actorInstance.selectActor(pathString: pathString)
+			} else {
+				throw InternalError.invalidActorPath(pathString: pathString)
+			}
+		}
+	}
+
 	// TODO
-    // public func getChildrenActors() -> [String: ActorRef] {
-    //     var newDict : [String:ActorRef] = [String : ActorRef]()
-        
-    //     for (k,v) in self.children {
-    //         newDict[k] = v.this
-    //     }
-    //     return newDict
-    // }
+    public func getChildrenActors() -> [String: ActorRef] {
+        return this.children
+    }
     
     
 	/**
@@ -196,10 +229,11 @@ public class Actor: NSObject {
 		switch realMsg { 
 		case is Harakiri, is PoisonPill:
 			self.willStop() 
+			//TODO: race condition on children
 			self.this.children.forEach({
 				(_,actorRef) in actorRef ! Harakiri(sender:this) 
 			})
-			self.this.supervisor.stop(self.this)
+			self.this.supervisor?.stop(self.this)
 		default: 
 			if let (name, state) : (String, Receive) = self.statesStack.head() { 
 				#if DEBUG 
@@ -318,7 +352,6 @@ public class Actor: NSObject {
 		new actor
     */
 	public override init() {
-		underlyingQueue = ActorSystem.getQueue() 
 		super.init()
 		self.preStart()
 	}

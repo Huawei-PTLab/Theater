@@ -45,6 +45,8 @@ extension Actor {
     
     public class PoisonPill : Message {}
 
+	public class Terminated: Message {}
+
     /**
     Convenient Message subclass which has an operationId that can be used to track a transaction or some sort of message that needs to be tracked
     */

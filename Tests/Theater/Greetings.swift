@@ -16,10 +16,6 @@ class Happy : Actor.Message {}
 
 class GreetingActor: Actor {
 
-    required init(context: ActorSystem, ref: ActorRef, args: [Any]! = nil) {
-        super.init(context: context, ref: ref)
-    }
-
     override func preStart() -> Void {
         super.preStart()
         self.become("happy", state: self.happy(), discardOld: true)
@@ -72,7 +68,7 @@ class GreetingActor: Actor {
 
 class GreetingActorController {
     lazy var system : ActorSystem = ActorSystem(name : "GreetingActorController")
-    lazy var greetingActor : ActorRef = self.system.actorOf(GreetingActor.self, name:"GreetingActor")
+    lazy var greetingActor : ActorRef = self.system.actorOf(GreetingActor(), name:"GreetingActor")
 
     func kickoff(){
         greetingActor ! Greeting(sender: nil)
