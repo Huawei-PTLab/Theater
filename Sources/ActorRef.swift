@@ -43,8 +43,9 @@ public class ActorRef: CustomStringConvertible {
 
 	/**
 		Reference to the actual actor.
+		This is optional because actual actor instance might crash (e.g. in the remote node)
 	 */
-	internal var actorInstance: Actor	
+	internal var actorInstance: Actor?
 
 	/**
 		A backup of the actual actor instance, in case actor crashes.
@@ -80,10 +81,12 @@ public class ActorRef: CustomStringConvertible {
 		- parameter msg : The message to send to the Actor.
     */
     public func tell (_ msg : Unmanaged<Actor.Message>) -> Void {
-		self.actorInstance.tell(msg)
+		if let actor = self.actorInstance {
+			actor.tell(msg)
+		}
     }
     
 	internal func stop(_ ref: ActorRef) {
-		//TODO
+		actorInstance?.stop(ref)
 	}
 }

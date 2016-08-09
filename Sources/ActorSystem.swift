@@ -22,7 +22,7 @@ public class ActorSystem  {
     /**
 		The name of the 'ActorSystem'
     */
-	private let name : String
+	public let name : String
 
 	private let dispatcher: Dispatcher
 
@@ -49,7 +49,6 @@ public class ActorSystem  {
         // supervisor!.stop(actorRef)	//TODO
     }
     
-	//TODO
     public func stop() {
 		supervisor ! Actor.Harakiri(sender: nil)
     }
@@ -68,7 +67,7 @@ public class ActorSystem  {
      ```
     */
     public func actorOf(_ actorInstance : Actor, name : String) -> ActorRef {
-        return supervisor.actorInstance.actorOf(actorInstance, name: name)
+        return supervisor.actorInstance!.actorOf(actorInstance, name: name)
     }
     
     /**
@@ -85,11 +84,11 @@ public class ActorSystem  {
      
     */
     public func actorOf(_ actorInstance : Actor) -> ActorRef {
-		return supervisor.actorInstance.actorOf(actorInstance)
+		return supervisor.actorInstance!.actorOf(actorInstance)
     }
     
     public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
-		return try? self.supervisor.actorInstance.selectActor(pathString: actorPath)
+		return try? self.supervisor.actorInstance!.selectActor(pathString: actorPath)
     }
     
     deinit {

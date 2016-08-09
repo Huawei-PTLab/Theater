@@ -67,8 +67,8 @@ public class Actor: NSObject {
 		if let ref = self._ref {
 			return ref
 		} else {
-			print("ERROR: nil _ref")
-			exit(0)	//TODO: change to exception
+			print("ERROR: nil _ref, terminating system")
+			exit(1)
 		}
 	}
 
@@ -78,8 +78,9 @@ public class Actor: NSObject {
     
     public func stop(_ actorRef : ActorRef) -> Void {
         dispatch_async(underlyingQueue) { () -> Void in
-            // let path = actorRef.path.asString	//TODO
-            // self.children.removeValue(forKey: path)	// TODO
+            let path = actorRef.path.asString
+            self.this.children.removeValue(forKey: path)
+			actorRef.actorInstance = nil
         }
     }
     
@@ -100,7 +101,8 @@ public class Actor: NSObject {
         let ref = ActorRef(
 			path:ActorPath(path:completePath), 
 			actorInstance: actorInstance, 
-			context: this.context
+			context: this.context,
+			supervisor: self.this
 			)
 		actorInstance._ref = ref
 		actorInstance.underlyingQueue = this.context.assignQueue()
@@ -137,7 +139,7 @@ public class Actor: NSObject {
    				"\(this.path.asString)/\(pathString.characters.split(separator: "/").map(String.init)[nextIdx])"
 			let next: ActorRef? = this.children[nextPath]
 			if let nextNode = next {
-				return try nextNode.actorInstance.selectActor(pathString: pathString)
+				return try nextNode.actorInstance!.selectActor(pathString: pathString)
 			} else {
 				throw InternalError.invalidActorPath(pathString: pathString)
 			}
@@ -229,11 +231,34 @@ public class Actor: NSObject {
 		switch realMsg { 
 		case is Harakiri, is PoisonPill:
 			self.willStop() 
-			//TODO: race condition on children
-			self.this.children.forEach({
-				(_,actorRef) in actorRef ! Harakiri(sender:this) 
-			})
-			self.this.supervisor?.stop(self.this)
+			dispatch_async(underlyingQueue) { () in 
+				if self.this.children.count == 0 && self.this.supervisor != nil {
+					/**
+						The order of these two calls matters! Upon receiving
+						Terminated msg, supervisor checks the children size, and
+						the checking should only happen after stop() removes the
+						child.
+					*/
+					self.this.supervisor!.stop(self.this)
+					self.this.supervisor! ! Terminated(sender: self.this)
+				} else {
+					self.this.children.forEach({
+						(_,actorRef) in actorRef ! Harakiri(sender:self.this) 
+					})
+				}
+			}
+		case is Terminated:
+			dispatch_async(underlyingQueue) {
+				if self.this.children.count == 0 {
+					if let supervisor = self.this.supervisor {
+						supervisor.stop(self.this)
+						supervisor ! Terminated(sender: self.this)
+					} else {
+						// This is the root of supervision tree
+						print("ActorSystem \(self.this.context.name) termianted")
+					}
+				}
+			}
 		default: 
 			if let (name, state) : (String, Receive) = self.statesStack.head() { 
 				#if DEBUG 
@@ -270,9 +295,6 @@ public class Actor: NSObject {
 		dispatch_async(underlyingQueue) { () in
 			// let realMsg = msg.takeUnretainedValue() self.sender =
 			// realMsg.sender
-			#if DEBUG 
-			print("\(self.sender?.path.asString) told \(msg) to \(self.this.path.asString)")
-			#endif 
 			self.systemReceive(msg) 
 		} 
 	}
@@ -357,9 +379,9 @@ public class Actor: NSObject {
 	}
 
     deinit {
-        #if DEBUG
-            print("killing \(self.this.path.asString)")
-        #endif
+        // #if DEBUG
+            print("deinit \(self.this)")
+        // #endif
     }
 
 }

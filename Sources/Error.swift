@@ -4,4 +4,5 @@
 enum InternalError: ErrorProtocol {
 	case invalidActorPath(pathString: String)
 	case noSuchChild(pathString: String)
+	case NullActorRef
 }
