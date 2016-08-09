@@ -73,13 +73,13 @@ class RecordResult: Actor.Message {
 class Client: Actor {
     static let serverPath = "\(systemName)/\(userName)/\(serverName)"
     static let monitorPath = "\(systemName)/\(userName)/\(monitorName)"
-    var server: ActorRef?
-    var monitor: ActorRef?
-    override init() {
-        super.init()
-        server = try? selectActor(pathString: Client.serverPath)
-        monitor = try? selectActor(pathString: Client.monitorPath)
-    }
+    lazy var server: ActorRef? = {
+		return try? self.selectActor(pathString: Client.serverPath)
+	}()
+    lazy var monitor: ActorRef? = {
+		return try? self.selectActor(pathString: Client.monitorPath)
+	}()
+
     override func preStart() -> Void {
         super.preStart()
         self.become("idle", state: self.idle(), discardOld: true)

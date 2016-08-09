@@ -7,6 +7,7 @@ class TheaterTests: XCTestCase {
 		let pp = PingPong()
 		sleep(3)
 		pp.stop()
+		sleep(3)	// wait for the stopping process to finish
 	}
 
 	func testGreetings() {
@@ -28,14 +29,14 @@ class TheaterTests: XCTestCase {
 		sleep(10)
 		monitor ! ShowResult(sender: nil)
 		system.stop()
-		exit(0)
+		sleep(2)	// wait to complete
 	}
 
 	static var allTests: [(String, (TheaterTests) -> () throws -> Void)] {
 		return [
 			("testPingPong", testPingPong),
 			("testGreetings", testGreetings),
-			// ("testCloudEdge", testCloudEdge)
+			("testCloudEdge", testCloudEdge)
 		]
 	}
 }

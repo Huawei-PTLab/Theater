@@ -87,8 +87,8 @@ public class ActorSystem  {
 		return supervisor.actorInstance!.actorOf(actorInstance)
     }
     
-    public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
-		return try? self.supervisor.actorInstance!.selectActor(pathString: actorPath)
+    public func selectActor(pathString : String) throws -> ActorRef {
+		return try self.supervisor.actorInstance!.selectChildActor(pathString: pathString)
     }
     
     deinit {

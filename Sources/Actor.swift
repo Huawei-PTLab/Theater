@@ -63,6 +63,8 @@ public class Actor: NSObject {
     */
     private var _ref : ActorRef? = nil
 
+	private var dying = false
+
 	public var this: ActorRef {
 		if let ref = self._ref {
 			return ref
@@ -124,7 +126,7 @@ public class Actor: NSObject {
 		return ref
 	}
 
-	public func selectActor(pathString: String) throws -> ActorRef {
+	public func selectChildActor(pathString: String) throws -> ActorRef {
 		guard pathString.hasPrefix(this.path.asString) else {
 			throw InternalError.noSuchChild(pathString: pathString)
 		}
@@ -134,16 +136,20 @@ public class Actor: NSObject {
 		if pathString == this.path.asString {
 			return this
 		} else {
-			let nextIdx = this.path.asString.characters.split(separator: "/").count + 1
+			let nextIdx = this.path.asString.characters.split(separator: "/").count
 			let nextPath: String = 
    				"\(this.path.asString)/\(pathString.characters.split(separator: "/").map(String.init)[nextIdx])"
 			let next: ActorRef? = this.children[nextPath]
 			if let nextNode = next {
-				return try nextNode.actorInstance!.selectActor(pathString: pathString)
+				return try nextNode.actorInstance!.selectChildActor(pathString: pathString)
 			} else {
 				throw InternalError.invalidActorPath(pathString: pathString)
 			}
 		}
+	}
+
+	public func selectActor(pathString: String) throws -> ActorRef {
+		return try this.context.selectActor(pathString: pathString)
 	}
 
 	// TODO
@@ -230,6 +236,7 @@ public class Actor: NSObject {
 		let realMsg = msg.takeUnretainedValue() 
 		switch realMsg { 
 		case is Harakiri, is PoisonPill:
+			self.dying = true
 			self.willStop() 
 			dispatch_async(underlyingQueue) { () in 
 				if self.this.children.count == 0 && self.this.supervisor != nil {
@@ -248,14 +255,16 @@ public class Actor: NSObject {
 				}
 			}
 		case is Terminated:
-			dispatch_async(underlyingQueue) {
-				if self.this.children.count == 0 {
-					if let supervisor = self.this.supervisor {
-						supervisor.stop(self.this)
-						supervisor ! Terminated(sender: self.this)
-					} else {
-						// This is the root of supervision tree
-						print("ActorSystem \(self.this.context.name) termianted")
+			if dying {
+				dispatch_async(underlyingQueue) {
+					if self.this.children.count == 0 {
+						if let supervisor = self.this.supervisor {
+							supervisor.stop(self.this)
+							supervisor ! Terminated(sender: self.this)
+						} else {
+							// This is the root of supervision tree
+							print("ActorSystem \(self.this.context.name) termianted")
+						}
 					}
 				}
 			}

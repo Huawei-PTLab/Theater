@@ -78,6 +78,6 @@ class GreetingActorController {
         greetingActor ! Greeting(sender: nil)
         greetingActor ! Happy(sender: nil)
         greetingActor ! Greeting(sender: nil)
-        sleep(10)
+        sleep(2)
     }
 }
