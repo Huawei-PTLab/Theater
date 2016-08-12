@@ -32,11 +32,27 @@ class TheaterTests: XCTestCase {
 		sleep(2)	// wait to complete
 	}
 
+	func testSelectActor() {
+		let system = ActorSystem(name: "system")
+		let _ = system.actorOf(Ping(), name: "Ping")
+		let _ = system.actorOf(Pong(), name: "Pong")
+
+		let ping = try! system.selectActor(pathString: "system/user/Ping")
+		let pong = try! system.selectActor(pathString: "system/user/Pong")
+		XCTAssertNotNil(ping)
+		XCTAssertNotNil(pong)
+		pong ! Ball(sender: ping)
+		sleep(5)
+		system.stop()
+		sleep(1)
+	}
+
 	static var allTests: [(String, (TheaterTests) -> () throws -> Void)] {
 		return [
-			("testPingPong", testPingPong),
-			("testGreetings", testGreetings),
-			("testCloudEdge", testCloudEdge)
+			("PingPong", testPingPong),
+			("Greetings", testGreetings),
+			("testSelectActor", testSelectActor),
+			("CloudEdge", testCloudEdge),
 		]
 	}
 }
