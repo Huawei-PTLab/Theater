@@ -22,7 +22,7 @@ class Ping : Actor {
                 counter += 1
                 print("ping counter: \(counter)")
                 NSThread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
-                self.sender! ! Ball(sender: this)
+                msg.sender! ! Ball(sender: this)
             
             default:
                 super.receive(msg)
@@ -39,7 +39,7 @@ class Pong : Actor {
             counter += 1
             print("pong counter: \(counter)")
             NSThread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
-            self.sender! ! Ball(sender: this)
+            msg.sender! ! Ball(sender: this)
             
         default:
             super.receive(msg)

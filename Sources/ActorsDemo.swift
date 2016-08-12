@@ -33,7 +33,7 @@ public class TestActor : Actor {
                     print("The end")
                     test.expectation.fulfill()
                 } else {
-                    if let sender = self.sender {
+                    if let sender = msg.sender {
                         sender ! TestPerformance(sender: this, count: test.count + 1, max: test.max, expectation: test.expectation)
                     }
                 }
