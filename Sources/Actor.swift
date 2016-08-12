@@ -337,7 +337,7 @@ public class Actor: NSObject {
 	*/
 	public typealias Task = (cancel : Bool) -> Void 
 
-	public func delay(time:NSTimeInterval, task: ()->() ) ->  Task? {     
+	public func delay(time:TimeInterval, task: ()->() ) ->  Task? {     
         
         func dispatch_later(block:()-> ()) {
             dispatch_after(
