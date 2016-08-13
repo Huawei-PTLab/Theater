@@ -66,6 +66,17 @@ extension Actor {
         }
     }
 
+	/**
+		Wrapper for sending Errors as messages
+	*/
+	public class ErrorMessage: Message {
+		let error: Error
+		init(_ e: Error, sender: ActorRef) {
+			error = e
+			super.init(sender: sender)
+		}
+	}
+
     /**
     This is an Actor System generated message that is sent to the sender when it tries to send a message to an Actor that has been stopped beforehand.
     */
@@ -81,4 +92,3 @@ extension Actor {
     }
 
 }
-

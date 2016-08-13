@@ -16,7 +16,7 @@ class Ping : Actor {
     
     var counter = 0
     
-    override func receive(_ msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) throws {
         switch(msg) {
             case is Ball:
                 counter += 1
@@ -25,7 +25,7 @@ class Ping : Actor {
                 msg.sender! ! Ball(sender: this)
             
             default:
-                super.receive(msg)
+                try super.receive(msg)
         }
     }
 }
@@ -33,7 +33,7 @@ class Ping : Actor {
 class Pong : Actor {
     var counter = 0
     
-    override func receive(_ msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) throws {
         switch(msg) {
         case is Ball:
             counter += 1
@@ -42,7 +42,7 @@ class Pong : Actor {
             msg.sender! ! Ball(sender: this)
             
         default:
-            super.receive(msg)
+            try super.receive(msg)
         }
     }
 }

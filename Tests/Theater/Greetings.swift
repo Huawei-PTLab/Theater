@@ -38,7 +38,7 @@ class GreetingActor: Actor {
         }
     }
 
-    func happy() -> Receive { return {[unowned self](msg : Message) in
+    func happy() -> Receive { return {[unowned self](msg : Message) throws in
             switch(msg) {
             case is Greeting:
                 print("Actor says: Hello")
@@ -46,12 +46,12 @@ class GreetingActor: Actor {
                 print("Actor is Angry")
                 self.become("angry", state: self.angry(), discardOld: true)
             default:
-                self.receive(msg)
+                try self.receive(msg)
             }
         }
     }
 
-    func angry()  -> Receive { return {[unowned self](msg : Message) in
+    func angry()  -> Receive { return {[unowned self](msg : Message) throws in
             switch(msg) {
             case is Greeting:
                 print("Actor says: Go away")
@@ -59,7 +59,7 @@ class GreetingActor: Actor {
                 print("Actor is happy")
                 self.become("happy", state: self.happy(), discardOld: true)
             default:
-                self.receive(msg)
+                try self.receive(msg)
             }
         }
     }

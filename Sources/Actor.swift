@@ -29,7 +29,7 @@ public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
     actorRef.tell(unmanaged)
 }
 
-public typealias Receive = (Actor.Message) -> (Void)
+public typealias Receive = (Actor.Message) throws -> (Void)
 
 /**
 	Actors are the central elements of Theater.
@@ -235,6 +235,8 @@ public class Actor: NSObject {
 	final public func systemReceive(_ msg : Unmanaged<Actor.Message>) -> Void {
 		let realMsg = msg.takeUnretainedValue() 
 		switch realMsg { 
+		case is ErrorMessage:
+			self.supervisorStrategy(errorMsg: realMsg as! ErrorMessage)
 		case is Harakiri, is PoisonPill:
 			self.dying = true
 			self.willStop() 
@@ -273,9 +275,21 @@ public class Actor: NSObject {
 				#if DEBUG 
 				print("Sending message to state\(name)") 
 				#endif 
-				state(realMsg) 
+				do {
+					try state(realMsg) 
+				} catch {
+					if let supervisor = this.supervisor {
+						supervisor ! ErrorMessage(error, sender: this)
+					}
+				}
 			} else { 
-				self.receive(realMsg) 
+				do {
+					try self.receive(realMsg)
+				} catch {					
+					if let supervisor = this.supervisor {
+						supervisor ! ErrorMessage(error, sender: this)
+					}
+				}
 			}
 		}
 	}
@@ -287,7 +301,7 @@ public class Actor: NSObject {
     
 		- Parameter msg: the incoming message
     */
-    public func receive(_ msg : Actor.Message) -> Void {
+    public func receive(_ msg : Actor.Message) throws -> Void {
         switch msg {
             default :
             #if DEBUG
@@ -295,6 +309,18 @@ public class Actor: NSObject {
             #endif
         }
     }
+
+	/**
+		User specifies handling of errors using this method.
+		(learned from Akka)
+	*/
+	public func supervisorStrategy(errorMsg: ErrorMessage) -> Void {
+		switch(errorMsg) {
+		default:
+			print("\(self.this) got \(errorMsg.error) from child \(errorMsg.sender!)")
+			//TODO: restart as default behavior?
+		}
+	}
     
 	/**
 		This method is used by the ActorSystem to communicate with the actors,

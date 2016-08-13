@@ -103,7 +103,7 @@ class PongParent: Actor {
 class HeadlessPing : Actor {
     var counter = 0
     
-    override func receive(_ msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) throws {
         switch(msg) {
             case is Ball:
                 counter += 1
@@ -114,7 +114,7 @@ class HeadlessPing : Actor {
 					pong ! Ball(sender: nil)
 				}
             default:
-                super.receive(msg)
+                try super.receive(msg)
         }
     }
 }
@@ -122,7 +122,7 @@ class HeadlessPing : Actor {
 class HeadlessPong : Actor {
     var counter = 0
     
-    override func receive(_ msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) throws {
         switch(msg) {
         case is Ball:
             counter += 1
@@ -133,7 +133,7 @@ class HeadlessPong : Actor {
 				ping ! Ball(sender: nil)
 			}
         default:
-            super.receive(msg)
+            try super.receive(msg)
         }
     }
 }
