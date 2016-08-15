@@ -69,7 +69,7 @@ public class Actor: NSObject {
 		if let ref = self._ref {
 			return ref
 		} else {
-			print("ERROR: nil _ref, terminating system")
+			print("[ERROR] nil _ref, terminating system")
 			exit(1)
 		}
 	}
@@ -265,7 +265,7 @@ public class Actor: NSObject {
 							supervisor ! Terminated(sender: self.this)
 						} else {
 							// This is the root of supervision tree
-							print("ActorSystem \(self.this.context.name) termianted")
+							print("[INFO] ActorSystem \(self.this.context.name) termianted")
 						}
 					}
 				}
@@ -415,7 +415,7 @@ public class Actor: NSObject {
 
     deinit {
         // #if DEBUG
-            print("deinit \(self.this)")
+            print("[INFO] deinit \(self.this)")
         // #endif
     }
 

@@ -83,6 +83,8 @@ public class ActorRef: CustomStringConvertible {
     public func tell (_ msg : Unmanaged<Actor.Message>) -> Void {
 		if let actor = self.actorInstance {
 			actor.tell(msg)
+		} else {
+			print("[WARNING] Fail to deliver message \(msg) to \(self)")
 		}
     }
     

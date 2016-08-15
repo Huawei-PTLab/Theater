@@ -50,6 +50,7 @@ public class ActorSystem  {
     }
     
     public func stop() {
+		print("[INFO] ActorSystem \(self) is terminating")
 		supervisor ! Actor.Harakiri(sender: nil)
     }
     
