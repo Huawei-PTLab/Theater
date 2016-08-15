@@ -141,7 +141,7 @@ class Server: Actor {
                 #endif
             } else {
                 index += 1
-                let container = actorOf(Container(), name: String(format: "Container%d", index))
+                let container = actorOf({Container()}, name: String(format: "Container%d", index))
                 activeContainer[index] = container
                 #if DEBUG
                     print("\(Server.self).\(#function): create new container \(container)")
@@ -251,10 +251,10 @@ func main() {
         exit(2)
     }
     let system = ActorSystem(name: systemName)
-    let _ = system.actorOf(Server(), name: serverName)
-    let monitor = system.actorOf(Monitor(), name: monitorName)
+    let _ = system.actorOf({ Server() }, name: serverName)
+    let monitor = system.actorOf({ Monitor() }, name: monitorName)
     for i in 0..<count! {
-        let client = system.actorOf(Client(), name: "Client\(i)")
+        let client = system.actorOf({ Client() }, name: "Client\(i)")
         let timestamp = timeval(tv_sec: 0, tv_usec:0)
         client ! Request(client: i, server: 0, timestamp: timestamp)
         usleep(1000)

@@ -18,10 +18,10 @@ class TheaterTests: XCTestCase {
 	func testCloudEdge() {
 		let count = 1000
 		let system = ActorSystem(name: systemName)
-		let _ = system.actorOf(Server(), name: serverName)
-		let monitor = system.actorOf(Monitor(), name: monitorName)
+		let _ = system.actorOf({Server()}, name: serverName)
+		let monitor = system.actorOf({Monitor()}, name: monitorName)
 		for i in 0..<count {
-			let client = system.actorOf(Client(), name: "Client\(i)")
+			let client = system.actorOf({Client()}, name: "Client\(i)")
 			let timestamp = timeval(tv_sec: 0, tv_usec:0)
 			client ! Request(client: i, server: 0, timestamp: timestamp)
 			usleep(1000)

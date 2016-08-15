@@ -50,7 +50,7 @@ public class ActorSystem  {
     }
     
     public func stop() {
-		print("[INFO] ActorSystem \(self) is terminating")
+		print("[INFO] ActorSystem \(self.name) is terminating")
 		supervisor ! Actor.Harakiri(sender: nil)
     }
     
@@ -67,8 +67,8 @@ public class ActorSystem  {
      var wsCtrl : ActorRef = actorSystem.actorOf(WSRViewController.self, name:  "WSRViewController")
      ```
     */
-    public func actorOf(_ actorInstance : Actor, name : String) -> ActorRef {
-        return supervisor.actorInstance!.actorOf(actorInstance, name: name)
+    public func actorOf(_ initialization: () -> Actor, name : String) -> ActorRef {
+        return supervisor.actorInstance!.actorOf(initialization, name: name)
     }
     
     /**
@@ -84,8 +84,8 @@ public class ActorSystem  {
      ```
      
     */
-    public func actorOf(_ actorInstance : Actor) -> ActorRef {
-		return supervisor.actorInstance!.actorOf(actorInstance)
+    public func actorOf(_ initialization : () -> Actor) -> ActorRef {
+		return supervisor.actorInstance!.actorOf(initialization)
     }
     
     public func selectActor(pathString : String) throws -> ActorRef {

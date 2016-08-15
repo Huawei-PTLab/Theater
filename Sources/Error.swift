@@ -5,6 +5,7 @@ enum InternalError: Error {
 	case invalidActorPath(pathString: String)
 	case noSuchChild(pathString: String)
 	case nullActorRef
+	case nullActorInstance(actorRef: ActorRef)
 }
 
 public enum TheaterError: Error {

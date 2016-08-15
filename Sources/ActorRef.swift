@@ -52,17 +52,17 @@ public class ActorRef: CustomStringConvertible {
 
 		TODO: refresh backup occasionally 
 	*/
-	// private var backup: Actor 
+	internal var initialization: () -> Actor
     
 	/**
 		Called by Actor.actorOf
 	*/
-    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem, supervisor: ActorRef) {
+    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem, supervisor: ActorRef, initialization: () -> Actor) {
         self.path = path
 		self.actorInstance = actorInstance
 		self.context = context
 		self.supervisor = supervisor
-		// self.backup = actorInstance.copy() as! Actor 	// TODO: check the usage of copy()
+		self.initialization = initialization
     }
 
 	/**
@@ -73,6 +73,7 @@ public class ActorRef: CustomStringConvertible {
 		self.actorInstance = actorInstance
 		self.context = context
 		self.supervisor = nil
+		self.initialization = {Actor()}
     }
     
     /**

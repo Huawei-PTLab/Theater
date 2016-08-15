@@ -61,7 +61,7 @@ public class Actor: NSObject {
     /**
 		Reference to the ActorRef of the current actor
     */
-    private var _ref : ActorRef? = nil
+    internal var _ref : ActorRef? = nil
 
 	private var dying = false
 
@@ -89,22 +89,24 @@ public class Actor: NSObject {
 	/** 
 		Generate a random name for the new actor
 	*/
-    public func actorOf(_ actorInstance : Actor) -> ActorRef {
-        return actorOf(actorInstance, name: NSUUID.init().UUIDString)
+    public func actorOf(_ initialization: () -> Actor) -> ActorRef {
+        return actorOf(initialization, name: NSUUID.init().UUIDString)
     }
 
 	/**
 		Pass in a new actor instance, wrap it with ActorRef and return the
 		ActorRef
 	*/
-    public func actorOf(_ actorInstance : Actor, name : String) -> ActorRef {
+    public func actorOf(_ initialization: () -> Actor, name : String) -> ActorRef {
+		let actorInstance = initialization()
         //TODO: should we kill or throw an error when user wants to reuse address of actor?
         let completePath = "\(self.this.path.asString)/\(name)"
         let ref = ActorRef(
 			path:ActorPath(path:completePath), 
 			actorInstance: actorInstance, 
 			context: this.context,
-			supervisor: self.this
+			supervisor: self.this,
+			initialization: initialization
 			)
 		actorInstance._ref = ref
 		actorInstance.underlyingQueue = this.context.assignQueue()
@@ -318,7 +320,8 @@ public class Actor: NSObject {
 		switch(errorMsg) {
 		default:
 			print("\(self.this) got \(errorMsg.error) from child \(errorMsg.sender!)")
-			//TODO: restart as default behavior?
+			print("[INFO] restarting \(errorMsg.sender!.path.asString)")
+			errorMsg.sender!.restart()
 		}
 	}
     
@@ -415,7 +418,7 @@ public class Actor: NSObject {
 
     deinit {
         // #if DEBUG
-            print("[INFO] deinit \(self.this)")
+            print("[INFO] deinit \(self.this.path.asString)")
         // #endif
     }
 

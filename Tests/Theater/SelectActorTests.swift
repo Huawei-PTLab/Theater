@@ -16,8 +16,8 @@ class SelectActorTests: XCTestCase {
 
 	func testFlat() {
 		let system = ActorSystem(name: "system")
-		let _ = system.actorOf(Ping(), name: "Ping")
-		let _ = system.actorOf(Pong(), name: "Pong")
+		let _ = system.actorOf({Ping()}, name: "Ping")
+		let _ = system.actorOf({Pong()}, name: "Pong")
 
 		let ping = try! system.selectActor(pathString: "system/user/Ping")
 		let pong = try! system.selectActor(pathString: "system/user/Pong")
@@ -31,8 +31,8 @@ class SelectActorTests: XCTestCase {
 
 	func testNested() {
 		let system = ActorSystem(name: "system")
-		let foo = system.actorOf(PingParent(), name: "Foo")
-		let bar = system.actorOf(PongParent(), name: "Bar")
+		let foo = system.actorOf({PingParent()}, name: "Foo")
+		let bar = system.actorOf({PongParent()}, name: "Bar")
 		foo ! Create(sender: nil)
 		bar ! Create(sender: nil)
 
@@ -48,9 +48,9 @@ class SelectActorTests: XCTestCase {
 
 	func testFlatAndNested() {
 		let system = ActorSystem(name: "system")
-		let foo = system.actorOf(PingParent(), name: "Foo")
+		let foo = system.actorOf({PingParent()}, name: "Foo")
 		foo ! Create(sender: nil)
-		let _ = system.actorOf(Pong(), name: "Pong")
+		let _ = system.actorOf({Pong()}, name: "Pong")
 
 		let ping = try! system.selectActor(pathString: "system/user/Foo/Ping")
 		let pong = try! system.selectActor(pathString: "system/user/Pong")
@@ -64,8 +64,8 @@ class SelectActorTests: XCTestCase {
 
 	func testSelectActorInActor() {
 		let system = ActorSystem(name: "system")
-		let _ = system.actorOf(HeadlessPing(), name: "Ping")
-		let _ = system.actorOf(HeadlessPong(), name: "Pong")
+		let _ = system.actorOf({HeadlessPing()}, name: "Ping")
+		let _ = system.actorOf({HeadlessPong()}, name: "Pong")
 
 		let ping = try! system.selectActor(pathString: "system/user/Ping")
 		XCTAssertNotNil(ping)
@@ -82,7 +82,7 @@ class PingParent: Actor {
 	override func receive(_ msg: Actor.Message) {
 		switch(msg) {
 		case is Create:
-			let _ = actorOf(Ping(), name: "Ping")
+			let _ = actorOf({Ping()}, name: "Ping")
 		default:
 			print("unexpected message")
 		}
@@ -93,7 +93,7 @@ class PongParent: Actor {
 	override func receive(_ msg: Actor.Message) {
 		switch(msg) {
 		case is Create:
-			let _  = actorOf(Pong(), name: "Pong")
+			let _  = actorOf({Pong()}, name: "Pong")
 		default:
 			print("unexpected message")
 		}
