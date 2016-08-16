@@ -1,4 +1,3 @@
-import Foundation
 /**
 	An actor system has a tree like structure, ActorPath gives you an url like
 	way to find an actor inside a given actor system.
@@ -80,7 +79,7 @@ public class ActorRef: CustomStringConvertible {
      
 		- parameter msg : The message to send to the Actor.
     */
-    public func tell (_ msg : Unmanaged<Actor.Message>) -> Void {
+    public func tell (_ msg : Actor.Message) -> Void {
 		if let actor = self.actorInstance {
 			actor.tell(msg)
 		}
@@ -89,4 +88,24 @@ public class ActorRef: CustomStringConvertible {
 	internal func stop(_ ref: ActorRef) {
 		actorInstance?.stop(ref)
 	}
+}
+
+infix operator ! {associativity left precedence 130}
+
+/**
+     '!' Is a shortcut for typing:
+     
+     ```
+     actor ! msg
+     ```
+     
+     instead of
+     
+     ```
+     actorRef.tell(msg)
+     ```
+ */
+
+public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
+    actorRef.tell(msg)
 }

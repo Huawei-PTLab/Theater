@@ -7,29 +7,9 @@
 //
 
 import Foundation
-import Dispatch
-infix operator ! {associativity left precedence 130}
-
-/**
-	 '!' Is a shortcut for typing:
-	 
-	 ```
-	 actor ! msg
-	 ```
-	 
-	 instead of
-	 
-	 ```
-	 actorRef.tell(msg)
-	 ```
- */
-
-public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
-	let unmanaged = Unmanaged.passRetained(msg)
-    actorRef.tell(unmanaged)
-}
 
 public typealias Receive = (Actor.Message) -> (Void)
+
 
 /**
 	Actors are the central elements of Theater.
@@ -46,17 +26,30 @@ public typealias Receive = (Actor.Message) -> (Void)
 	 
 	Which will be called when some other actor tries to ! (tell) you something
 */
-public class Actor: NSObject {
+public class Actor {
     
     /**
 		Here we save all the actor states
     */
     final public let statesStack : Stack<(String,Receive)> = Stack()
-    
-    /**
-		Each actor has it's own mailbox to process Actor.Messages.
-    */
-    final internal var underlyingQueue: dispatch_queue_t! = nil
+   
+    /// Mailbox
+    final internal let mailbox = FastQueue<Actor.Message>(initSize:10)
+    /// State, whether or not in task queue
+    final internal var inTaskQueue : Bool = false
+    /// The real executor to run the process function
+    final internal var executor: Executor! = nil
+
+    /// Function to process part of the messages
+    final internal func processMessage() {
+        while let msg = mailbox.dequeue() {
+            systemReceive(msg)
+        }
+        //TODO: if not finish all message, put processMessage back to putAndRun again
+
+        //finished 
+        inTaskQueue = false
+    }
     
     /**
 		Reference to the ActorRef of the current actor
@@ -79,11 +72,10 @@ public class Actor: NSObject {
     }
     
     public func stop(_ actorRef : ActorRef) -> Void {
-        dispatch_async(underlyingQueue) { () -> Void in
-            let path = actorRef.path.asString
-            self.this.children.removeValue(forKey: path)
-			actorRef.actorInstance = nil
-        }
+        // Dispatch: Should be executed in protected
+        let path = actorRef.path.asString
+        self.this.children.removeValue(forKey: path)
+	    actorRef.actorInstance = nil
     }
     
 	/** 
@@ -107,10 +99,10 @@ public class Actor: NSObject {
 			supervisor: self.this
 			)
 		actorInstance._ref = ref
-		actorInstance.underlyingQueue = this.context.assignQueue()
-		dispatch_async(underlyingQueue) { () in 
-			self.this.children[completePath] = ref
-		}
+		actorInstance.executor = this.context.executor
+		// Dispatch: Should be executed in protected
+		self.this.children[completePath] = ref
+		
         return ref
     }
 
@@ -122,7 +114,7 @@ public class Actor: NSObject {
 			context: context
 			)
 		supervisorActor._ref = ref
-		supervisorActor.underlyingQueue = context.assignQueue()
+		supervisorActor.executor = context.executor
 		return ref
 	}
 
@@ -130,9 +122,13 @@ public class Actor: NSObject {
 		guard pathString.hasPrefix(this.path.asString) else {
 			throw InternalError.noSuchChild(pathString: pathString)
 		}
-		dispatch_barrier_sync(underlyingQueue) { () in
+
+        // Dispatch: Should wait for all actor creation task finished
+		/*dispatch_barrier_sync(underlyingQueue) { () in
 			// nothing, wait for enqueued changes to complete
-		}
+		}*/
+
+
 		if pathString == this.path.asString {
 			return this
 		} else {
@@ -232,13 +228,13 @@ public class Actor: NSObject {
 		not system related, then it calls the state at the head position of the
 		statesstack, if the stack is empty, then it calls the receive method
     */
-	final public func systemReceive(_ msg : Unmanaged<Actor.Message>) -> Void {
-		let realMsg = msg.takeUnretainedValue() 
+	final public func systemReceive(_ msg : Actor.Message) -> Void {
+        let realMsg = msg
 		switch realMsg { 
 		case is Harakiri, is PoisonPill:
 			self.dying = true
 			self.willStop() 
-			dispatch_async(underlyingQueue) { () in 
+            // Dispatch: should be executed in protected
 				if self.this.children.count == 0 && self.this.supervisor != nil {
 					/**
 						The order of these two calls matters! Upon receiving
@@ -253,10 +249,10 @@ public class Actor: NSObject {
 						(_,actorRef) in actorRef ! Harakiri(sender:self.this) 
 					})
 				}
-			}
+
 		case is Terminated:
 			if dying {
-				dispatch_async(underlyingQueue) {
+			    // Dispatch: should be executed in protected
 					if self.this.children.count == 0 {
 						if let supervisor = self.this.supervisor {
 							supervisor.stop(self.this)
@@ -266,7 +262,7 @@ public class Actor: NSObject {
 							print("ActorSystem \(self.this.context.name) termianted")
 						}
 					}
-				}
+
 			}
 		default: 
 			if let (name, state) : (String, Receive) = self.statesStack.head() { 
@@ -300,12 +296,12 @@ public class Actor: NSObject {
 		This method is used by the ActorSystem to communicate with the actors,
 		do not override.
     */
-	final public func tell(_ msg : Unmanaged<Actor.Message>) -> Void {
-		dispatch_async(underlyingQueue) { () in
-			// let realMsg = msg.takeUnretainedValue() self.sender =
-			// realMsg.sender
-			self.systemReceive(msg) 
-		} 
+	final public func tell(_ msg : Actor.Message) -> Void {
+        mailbox.enqueue(item:msg)
+        if !inTaskQueue {
+            inTaskQueue = true
+            executor.putAndRun(task:processMessage)
+        }
 	}
     
 	/**
@@ -322,68 +318,13 @@ public class Actor: NSObject {
     public func willStop() -> Void {
         
     }
-    
-    /**
-		Schedule Once is a timer that executes the code in block after seconds
-    */
-    final public func scheduleOnce(_ seconds:Double, block : (Void) -> Void) {
-        //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), underlyingQueue, block)
-    }
-
-	/*
-		Schedule Once is a timer that executes the code in block after seconds
-		and can cancle
-	*/
-	public typealias Task = (cancel : Bool) -> Void 
-
-	public func delay(time:TimeInterval, task: ()->() ) ->  Task? {     
-        
-        func dispatch_later(block:()-> ()) {
-            dispatch_after(
-                dispatch_time(
-                    DISPATCH_TIME_NOW,
-                    Int64(time * Double(NSEC_PER_SEC))),
-                self.underlyingQueue,
-                block)
-        }
-
-        var closure: dispatch_block_t? = task
-        var result: Task?
-
-        let delayedClosure: Task = {
-            cancel in
-            if let internalClosure = closure {
-                if (cancel == false) {                
-                    dispatch_async(self.underlyingQueue, internalClosure);
-                }
-            }
-            closure = nil
-            result = nil
-        }
-
-        result = delayedClosure
-
-        dispatch_later {
-            if let delayedClosure = result {            
-                delayedClosure(cancel: false)
-            }
-        }
-
-        return result;
-    }
-
-    public func cancel(task:Task?, cancle:Bool) {
-        task?(cancel: cancle)
-    }
 
 	/**
 		Default constructor used by the ActorSystem to create a new actor, you
 		should not call this directly, use  actorOf in the ActorSystem to create a
 		new actor
     */
-	public override init() {
-		super.init()
+	public init() {
 		self.preStart()
 	}
 

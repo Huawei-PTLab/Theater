@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import Dispatch
 
 
 /**
@@ -24,21 +23,18 @@ public class ActorSystem  {
     */
 	public let name : String
 
-	private let dispatcher: Dispatcher
+	let executor : Executor
 
     /**
 		Create a new actor system
      
 		- parameter name : The name of the ActorSystem
     */
-    public init(name : String, dispatcher: Dispatcher = DefaultDispatcher()) {
+    public init(name : String, executor : Executor = Executor()) {
         self.name = name
-		self.dispatcher = dispatcher
+		self.executor = executor
     }
 
-	internal func assignQueue() -> dispatch_queue_t {
-		return dispatcher.assignQueue()
-	}
     
     /**
 		This is used to stop or kill an actor
