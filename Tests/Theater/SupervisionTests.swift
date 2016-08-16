@@ -8,6 +8,7 @@ class SupervisionTests: XCTestCase {
 		return [
 			("testUnexpectedMessageError", testUnexpectedMessageError),
 			("testRestart", testRestart),
+			("testEscalate", testEscalate),
 		]
 	}
 
@@ -37,11 +38,38 @@ class SupervisionTests: XCTestCase {
 		}
 		sleep(2)
 	}
+
+	func testEscalate() {
+		let system = ActorSystem(name: "testRestart")
+		let parent = system.actorOf({CounterActorSupervisor()}, name: "supervisor")
+		parent ! CreateChild(sender: nil)
+		let counter = try! system.selectActor(pathString:"testRestart/user/supervisor/counter")
+		for i in 1...10 {
+			if i % 3 == 0 {
+				counter ! CommonError(sender: nil)
+			} else if i == 6  {
+				counter ! FatalError(sender: nil)
+			} else {
+				counter ! Increment(sender: nil)
+			}
+			// we need to sleep between messages because supervisor needs time to react to the 
+			// error messages from child
+			usleep(100)
+		}
+		sleep(2)
+	}
 }
 
 class CreateChild: Actor.Message {}
 class Foo: Actor.Message {}
 class Increment: Actor.Message {}
+class FatalError: Actor.Message {}
+class CommonError: Actor.Message {}
+enum TestError: Error {
+	case CommonError
+	case FatalError
+}
+
 
 class DefaultSupervisor: Actor {
 	override func receive(_ msg: Actor.Message) throws -> Void {
@@ -53,6 +81,16 @@ class DefaultSupervisor: Actor {
 }
 
 class CounterActorSupervisor: Actor {
+	override func supervisorStrategy(errorMsg: ErrorMessage) {
+		switch (errorMsg.error) {
+		case TestError.CommonError:
+			restart()
+		case TestError.FatalError:
+			escalate()
+		default:
+			restart()
+		}
+	}
 	override func receive(_ msg: Actor.Message) throws -> Void {
 		switch(msg) {
 		case is CreateChild:
@@ -73,6 +111,10 @@ class CounterActor: Actor {
 		case is Increment:
 			counter += 1
 			print("counter: \(counter)")
+		case is CommonError:
+			throw TestError.CommonError
+		case is FatalError:
+			throw TestError.FatalError
 		default:
 			throw TheaterError.unexpectedMessage(msg: msg)
 		}
