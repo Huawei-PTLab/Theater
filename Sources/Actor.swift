@@ -329,9 +329,9 @@ public class Actor {
 	}
 
     deinit {
-        // #if DEBUG
+        #if DEBUG
             print("deinit \(self.this)")
-        // #endif
+        #endif
     }
 
 }

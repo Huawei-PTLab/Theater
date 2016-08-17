@@ -5,9 +5,9 @@ import Glibc
 class TheaterTests: XCTestCase {
 	func testPingPong() {
 		let pp = PingPong()
-		sleep(3)
+		sleep(1)
 		pp.stop()
-		sleep(3)	// wait for the stopping process to finish
+		sleep(1)	// wait for the stopping process to finish
 	}
 
 	func testGreetings() {

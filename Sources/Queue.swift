@@ -102,7 +102,14 @@ class FastQueue<T>:Queue {
     }
 
     deinit {
-        ptr.deinitialize(count:size)
+        if count > 0 { //only deinitialize useful content
+            if front == 0 || front < rear {
+                (ptr+front).deinitialize(count:count)
+            } else {
+                ptr.deinitialize(count:rear)
+                (ptr+front).deinitialize(count:count-rear)
+            }
+        } 
         ptr.deallocate(capacity:size)
     }
 
@@ -117,8 +124,8 @@ class FastQueue<T>:Queue {
         let newSize = size * 2 
         let newPtr = UnsafeMutablePointer<T>.allocate(capacity:newSize)
 
-        if front == 0 {
-            newPtr.initialize(from:ptr, count:size)
+        if front == 0 || front < rear {
+            newPtr.initialize(from:ptr+front, count:size)
             rear = size // can continue expand
         } else {
             newPtr.initialize(from:ptr+front, count:(size-front))

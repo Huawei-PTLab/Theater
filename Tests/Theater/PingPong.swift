@@ -36,6 +36,7 @@ class Pong : Actor {
     override func receive(_ msg: Actor.Message) {
         switch(msg) {
         case is Ball:
+            if counter == 2 { return }
             counter += 1
             print("pong counter: \(counter)")
             Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!

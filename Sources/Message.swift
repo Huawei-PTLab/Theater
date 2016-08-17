@@ -5,7 +5,6 @@
 //  Created by Dario Lencina on 9/26/15.
 //  Copyright © 2015 dario. All rights reserved.
 //
-
 import Foundation
 
 extension Actor {
@@ -14,8 +13,7 @@ extension Actor {
     Actor send and receive objects that must subclass Message, the Message class provides a sender, which Actors can use to reply.
     */
 
-    //@objc public class Message : NSObject {
-    public class Message : NSObject {
+    public class Message : CustomStringConvertible {
         
         /**
         The ActorRef of the Actor that sent this message
@@ -27,8 +25,12 @@ extension Actor {
         The constuctor requires an Optional<ActorRef> to setup the sender
         */
         
-         public init(sender : Optional<ActorRef>) {
+        public init(sender : Optional<ActorRef>) {
             self.sender = sender
+        }
+
+        public var description: String { 
+            return "Actor.Message: \(Unmanaged.passUnretained(self).toOpaque())>" 
         }
         
     }
