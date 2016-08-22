@@ -28,6 +28,7 @@ class SupervisionTests: XCTestCase {
 		for i in 1...10 {
 			if i % 3 == 0 {
 				// Once every 3 messages, send a Foo to trigger restart.
+				print("sending message to reset counter")
 				counter ! Foo(sender: nil)
 			} else {
 				counter ! Increment(sender: nil)
@@ -46,8 +47,10 @@ class SupervisionTests: XCTestCase {
 		let counter = try! system.selectActor(pathString:"testRestart/user/supervisor/counter")
 		for i in 1...10 {
 			if i % 3 == 0 {
+				print("triggering small error")
 				counter ! CommonError(sender: nil)
 			} else if i == 6  {
+				print("triggering fatal error")
 				counter ! FatalError(sender: nil)
 			} else {
 				counter ! Increment(sender: nil)
@@ -84,11 +87,11 @@ class CounterActorSupervisor: Actor {
 	override func supervisorStrategy(errorMsg: ErrorMessage) {
 		switch (errorMsg.error) {
 		case TestError.CommonError:
-			restart()
+			errorMsg.sender!.restart()
 		case TestError.FatalError:
 			escalate()
 		default:
-			restart()
+			errorMsg.sender!.restart()
 		}
 	}
 	override func receive(_ msg: Actor.Message) throws -> Void {
