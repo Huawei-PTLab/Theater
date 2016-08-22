@@ -23,7 +23,8 @@ extension ActorRef {
 	internal func restart() {
 		if let actor = self.actorInstance {
 			let oldQueue = actor.underlyingQueue!
-			dispatch_async(oldQueue) {
+			oldQueue.async {
+				print("debug \(self) is restarting")
 				self.actorInstance = self.initialization()
 				self.actorInstance!._ref = self
 				self.actorInstance!.underlyingQueue = oldQueue

@@ -56,7 +56,7 @@ public class Actor: NSObject {
     /**
 		Each actor has it's own mailbox to process Actor.Messages.
     */
-    final internal var underlyingQueue: dispatch_queue_t! = nil
+    final internal var underlyingQueue: DispatchQueue! = nil
     
     /**
 		Reference to the ActorRef of the current actor
@@ -79,7 +79,7 @@ public class Actor: NSObject {
     }
     
     public func stop(_ actorRef : ActorRef) -> Void {
-        dispatch_async(underlyingQueue) { () -> Void in
+        underlyingQueue.async { () -> Void in
             let path = actorRef.path.asString
             self.this.children.removeValue(forKey: path)
 			actorRef.actorInstance = nil
@@ -110,7 +110,7 @@ public class Actor: NSObject {
 			)
 		actorInstance._ref = ref
 		actorInstance.underlyingQueue = this.context.assignQueue()
-		dispatch_async(underlyingQueue) { () in 
+		underlyingQueue.async { () in 
 			self.this.children[completePath] = ref
 		}
         return ref
@@ -132,7 +132,7 @@ public class Actor: NSObject {
 		guard pathString.hasPrefix(this.path.asString) else {
 			throw InternalError.noSuchChild(pathString: pathString)
 		}
-		dispatch_barrier_sync(underlyingQueue) { () in
+		underlyingQueue.sync { () in
 			// nothing, wait for enqueued changes to complete
 		}
 		if pathString == this.path.asString {
@@ -242,7 +242,7 @@ public class Actor: NSObject {
 		case is Harakiri, is PoisonPill:
 			self.dying = true
 			self.willStop() 
-			dispatch_async(underlyingQueue) { () in 
+			underlyingQueue.async { () in 
 				if self.this.children.count == 0 && self.this.supervisor != nil {
 					/**
 						The order of these two calls matters! Upon receiving
@@ -260,7 +260,7 @@ public class Actor: NSObject {
 			}
 		case is Terminated:
 			if dying {
-				dispatch_async(underlyingQueue) {
+				underlyingQueue.async {
 					if self.this.children.count == 0 {
 						if let supervisor = self.this.supervisor {
 							supervisor.stop(self.this)
@@ -330,7 +330,7 @@ public class Actor: NSObject {
 		do not override.
     */
 	final public func tell(_ msg : Unmanaged<Actor.Message>) -> Void {
-		dispatch_async(underlyingQueue) { () in
+		underlyingQueue.async { () in
 			// let realMsg = msg.takeUnretainedValue() self.sender =
 			// realMsg.sender
 			self.systemReceive(msg) 
@@ -355,9 +355,10 @@ public class Actor: NSObject {
     /**
 		Schedule Once is a timer that executes the code in block after seconds
     */
-    final public func scheduleOnce(_ seconds:Double, block : (Void) -> Void) {
+    final public func scheduleOnce(_ seconds: Int, block : (Void) -> Void) {
         //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), underlyingQueue, block)
+        underlyingQueue.after(when: DispatchTime.now() + DispatchTimeInterval.seconds(seconds),
+                                   execute: block)
     }
 
 	/*
@@ -366,45 +367,41 @@ public class Actor: NSObject {
 	*/
 	public typealias Task = (cancel : Bool) -> Void 
 
-	public func delay(time:TimeInterval, task: ()->() ) ->  Task? {     
+	//TODO
+	// public func delay(time:TimeInterval, task: ()->() ) ->  Task? {     
         
-        func dispatch_later(block:()-> ()) {
-            dispatch_after(
-                dispatch_time(
-                    DISPATCH_TIME_NOW,
-                    Int64(time * Double(NSEC_PER_SEC))),
-                self.underlyingQueue,
-                block)
-        }
+        // func dispatch_later(block:()-> ()) {
+            // underlyingQueue.after(when: DispatchTime.now() + time,
+                                       // execute: block)
+        // }
 
-        var closure: dispatch_block_t? = task
-        var result: Task?
+        // let delayedClosure: Task = {
+            // cancel in
+            // if let internalClosure = closure {
+                // if (cancel == false) {                
+                    // self.underlyingQueue.after(when: DispatchTime.now() + time,
+                                               // execute: internalClosure)
+                // }
+            // }
+            // closure = nil
+            // result = nil
+        // }
 
-        let delayedClosure: Task = {
-            cancel in
-            if let internalClosure = closure {
-                if (cancel == false) {                
-                    dispatch_async(self.underlyingQueue, internalClosure);
-                }
-            }
-            closure = nil
-            result = nil
-        }
+        // result = delayedClosure
 
-        result = delayedClosure
+        // dispatch_later {
+            // if let delayedClosure = result {            
+                // delayedClosure(cancel: false)
+            // }
+        // }
 
-        dispatch_later {
-            if let delayedClosure = result {            
-                delayedClosure(cancel: false)
-            }
-        }
+        // return result
+    // }
 
-        return result;
-    }
-
-    public func cancel(task:Task?, cancle:Bool) {
-        task?(cancel: cancle)
-    }
+	//TODO
+    // public func cancel(task:Task?, cancle:Bool) {
+    //     task?(cancel: cancle)
+    // }
 
 	/**
 		Default constructor used by the ActorSystem to create a new actor, you

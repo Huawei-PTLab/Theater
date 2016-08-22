@@ -2,20 +2,20 @@ import Dispatch
 import Foundation
 
 public protocol Dispatcher {
-	func assignQueue() -> dispatch_queue_t
-	func assignQueue(name: String) -> dispatch_queue_t
+	func assignQueue() -> DispatchQueue
+	func assignQueue(name: String) -> DispatchQueue
 }
 
 /**
 	Assign a new dispatch_queue every time
 */
 public class DefaultDispatcher: Dispatcher {
-	public func assignQueue() -> dispatch_queue_t {
-		return dispatch_queue_create("", nil)
+	public func assignQueue() -> DispatchQueue {
+		return DispatchQueue(label: "")
 	}	
 
-	public func assignQueue(name: String) -> dispatch_queue_t {
-		return dispatch_queue_create(name, nil)
+	public func assignQueue(name: String) -> DispatchQueue {
+		return DispatchQueue(label: name)
 	}
 }
 
@@ -26,9 +26,9 @@ public class ShareDispatcher: Dispatcher {
 	/** 
 		Ensure thead-safe access to type properties
 	*/
-	let systemQueue = dispatch_queue_create("system", nil)
-	var queues = [dispatch_queue_t]()
-	var randomQueue: dispatch_queue_t? = nil
+	let systemQueue = DispatchQueue(label: "system")
+	var queues = [DispatchQueue]()
+	var randomQueue: DispatchQueue? = nil
 	let maxQueues = 10000
 	var queueCount = 0
 
@@ -36,12 +36,12 @@ public class ShareDispatcher: Dispatcher {
 		srandom(UInt32(NSDate().timeIntervalSince1970))
 	}
 
-	public func assignQueue() -> dispatch_queue_t {
+	public func assignQueue() -> DispatchQueue {
 		if queueCount < maxQueues {
-			let newQueue = dispatch_queue_create("", nil)
+			let newQueue = DispatchQueue(label: "")
 			if randomQueue == nil { randomQueue = newQueue }
 			queueCount += 1
-			dispatch_async(systemQueue) { () in 
+			systemQueue.async { () in 
 				self.queues.append(newQueue)
 				let randomNumber = Int(rand())
 				if randomNumber % 2 == 0 {
@@ -50,7 +50,7 @@ public class ShareDispatcher: Dispatcher {
 			}
 			return newQueue
 		} else {
-			dispatch_async(systemQueue) { () in 
+			systemQueue.async { () in 
 				let randomNumber = Int(rand()) % self.maxQueues
 				self.randomQueue = self.queues[randomNumber]
 			}
@@ -58,7 +58,7 @@ public class ShareDispatcher: Dispatcher {
 		}
 	}
 
-	public func assignQueue(name: String) -> dispatch_queue_t {
-		return dispatch_queue_create(name, nil)
+	public func assignQueue(name: String) -> DispatchQueue {
+		return DispatchQueue(label: name)
 	}
 }

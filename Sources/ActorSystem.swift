@@ -36,7 +36,7 @@ public class ActorSystem  {
 		self.dispatcher = dispatcher
     }
 
-	internal func assignQueue() -> dispatch_queue_t {
+	internal func assignQueue() -> DispatchQueue {
 		return dispatcher.assignQueue()
 	}
     
