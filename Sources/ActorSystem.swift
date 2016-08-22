@@ -96,9 +96,9 @@ public class ActorSystem  {
     
     lazy private var supervisor : Actor? = Actor.self.init(context: self, ref: ActorRef(context: self, path: ActorPath(path: "\(self.name)/user")))
 
-	private let systemQueue = dispatch_queue_create("system", nil)
-	private var queues = [dispatch_queue_t]()
-	private var randomQueue: dispatch_queue_t? = nil
+	private let systemQueue = DispatchQueue(label:"system")
+	private var queues = [DispatchQueue]()
+	private var randomQueue: DispatchQueue? = nil
 	private let maxQueues: Int
 	private var queueCount = 0
     
@@ -123,12 +123,12 @@ public class ActorSystem  {
 		srandom(UInt32(NSDate().timeIntervalSince1970))
     }
 
-	func getQueue() -> dispatch_queue_t {
+	func getQueue() -> DispatchQueue {
 		if queueCount < maxQueues {
-			let newQueue = dispatch_queue_create("", nil)
+			let newQueue = DispatchQueue(label:"")
 			if randomQueue == nil { randomQueue = newQueue }
 			queueCount += 1
-			dispatch_async(systemQueue) { () in 
+			systemQueue.async { () in 
 				self.queues.append(newQueue)
 				let randomNumber = Int(rand())
 				if randomNumber % 2 == 0 {
@@ -137,7 +137,7 @@ public class ActorSystem  {
 			}
 			return newQueue
 		} else {
-			dispatch_async(systemQueue) { () in 
+			systemQueue.async { () in 
 				let randomNumber = Int(rand()) % self.maxQueues
 				self.randomQueue = self.queues[randomNumber]
 			}
@@ -223,7 +223,7 @@ public class ActorSystem  {
     */
     
     public func selectActor(_ actorPath : String) -> Optional<ActorRef>{
-		dispatch_barrier_sync(self.supervisor!.underlyingQueue) { () in
+		self.supervisor!.underlyingQueue.sync { () in
 			// nothing, wait for enqueued changes to complete
 		}
 		//TODO: needs to find actors that are NOT attached to supervisor

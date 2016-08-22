@@ -64,7 +64,7 @@ public class Actor : NSObject {
         //     let path = actorRef.path.asString
         //     self.children.removeValueForKey(path)
 		// TODO: not properly stop
-        dispatch_async(underlyingQueue) { () -> Void in
+        underlyingQueue.async { () -> Void in
             let path = actorRef.path.asString
             self.children.removeValue(forKey: path)
         }
@@ -79,7 +79,7 @@ public class Actor : NSObject {
         let completePath = "\(self.this.path.asString)/\(name)"
         let ref = ActorRef(context:self.context, path:ActorPath(path:completePath))
 		let actorInstance: Actor = clz.init(context: self.context, ref: ref)
-		dispatch_async(underlyingQueue) { () in 
+		underlyingQueue.async { () in 
 			self.children[completePath] = actorInstance
 		}
         return ref
@@ -92,7 +92,7 @@ public class Actor : NSObject {
 		let completePath = "\(self.this.path.asString)/\(name)"
 		let ref = ActorRef(context: self.context, path: ActorPath(path: completePath))
 		let actorInstance: Actor = clz.init(context: self.context, ref: ref, args: args)
-		dispatch_async(underlyingQueue) { () in
+		underlyingQueue.async { () in
 			self.children[completePath] = actorInstance
 		}
 		return ref
@@ -124,7 +124,7 @@ public class Actor : NSObject {
     */
     
     //final public let mailbox : NSOperationQueue = NSOperationQueue()
-    final public let underlyingQueue: dispatch_queue_t
+    final public let underlyingQueue: DispatchQueue 
     
     /**
     Sender has a reference to the last actor ref that sent this actor a message
@@ -264,7 +264,7 @@ public class Actor : NSObject {
         //     print("\(self.sender?.path.asString) told \(msg) to \(self.this.path.asString)")
         //     self.systemReceive(msg)
         // }
-        dispatch_async(underlyingQueue) { () in
+        underlyingQueue.async { () in
 			// let realMsg = msg.takeUnretainedValue()
             // self.sender = realMsg.sender
             #if DEBUG
@@ -294,33 +294,30 @@ public class Actor : NSObject {
     Schedule Once is a timer that executes the code in block after seconds
     */
      
-    final public func scheduleOnce(_ seconds:Double, block : (Void) -> Void) {
+    final public func scheduleOnce(_ seconds : Int, block : (Void) -> Void) {
         //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), underlyingQueue, block)
+        underlyingQueue.after(when: DispatchTime.now() + DispatchTimeInterval.seconds(seconds),
+                                   execute: block)
     }
 	/*
 		 Schedule Once is a timer that executes the code in block after seconds and can cancle
 	*/
 	public typealias Task = (cancel : Bool) -> Void
-    public func delay(time:NSTimeInterval, task: ()->() ) ->  Task? {     
+    public func delay(time:TimeInterval, task: ()->() ) ->  Task? {     
+        var closure: (()->())? = task
+        var result: Task?
         
         func dispatch_later(block:()-> ()) {
-            dispatch_after(
-                dispatch_time(
-                    DISPATCH_TIME_NOW,
-                    Int64(time * Double(NSEC_PER_SEC))),
-                self.underlyingQueue,
-                block)
+            underlyingQueue.after(when: DispatchTime.now() + time,
+                                       execute: block)
         }
-
-        var closure: dispatch_block_t? = task
-        var result: Task?
 
         let delayedClosure: Task = {
             cancel in
             if let internalClosure = closure {
                 if (cancel == false) {                
-                    dispatch_async(self.underlyingQueue, internalClosure);
+                    self.underlyingQueue.after(when: DispatchTime.now() + time,
+                                               execute: internalClosure)
                 }
             }
             closure = nil
@@ -335,7 +332,7 @@ public class Actor : NSObject {
             }
         }
 
-        return result;
+        return result
     }
 
     public func cancel(task:Task?, cancle:Bool) {

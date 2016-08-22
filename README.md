@@ -10,11 +10,11 @@ Current implementation targets `Ubuntu 15.10`.
 
 ## Install **swift** and **libdispatch**
 
-Install preview verison 2 of [Swift 3.0]("https://swift.org/download/#previews")
+Install preview verison 5 of [Swift 3.0]("https://swift.org/download/#previews")
 
-Compile and install **libdispatch**
+Compile and install **libdispatch** Note, for Ubuntu 14.04, Clang-3.8 is required to compile libdispatch.
 
-	git clone --recursive -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
+	git clone --recursive -b swift-3.0-preview-5-branch https://github.com/apple/swift-corelibs-libdispatch.git
 	cd swift-corelibs-libdispatch
 	sh ./autogen.sh
 	./configure --with-swift-toolchain=<path-to-swift>/usr --prefix=<path-to-swift>/usr

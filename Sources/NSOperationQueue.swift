@@ -16,11 +16,11 @@ prefix operator ^ {}
  Replaces:
  
  ```
- let blockOp = NSBlockOperation({
+ let blockOp = BlockOperation({
  print("blah")
  })
  
- NSOperationQueue.mainQueue().addOperations([blockOp], waitUntilFinished: true)
+ OperationQueue.mainQueue().addOperations([blockOp], waitUntilFinished: true)
  
  ```
  
@@ -33,7 +33,7 @@ prefix operator ^ {}
  */
 
 public prefix func ^ (block : (Void) -> (Void)) -> Void {
-    NSOperationQueue.mainQueue().addOperations([NSBlockOperation(block: block)], waitUntilFinished: true)
+    OperationQueue.mainQueue().addOperations([BlockOperation(block: block)], waitUntilFinished: true)
 }
 
 prefix operator ^^ {}
@@ -46,7 +46,7 @@ prefix operator ^^ {}
 
  
  ```
- NSOperationQueue.mainQueue().addOperationWithBlock({
+ OperationQueue.mainQueue().addOperationWithBlock({
  print("blah")
  })
  ```
@@ -60,5 +60,5 @@ prefix operator ^^ {}
  */
 
 public prefix func ^^ (block : (Void) -> (Void)) -> Void {
-    NSOperationQueue.mainQueue().addOperations([NSBlockOperation(block: block)], waitUntilFinished: false)
+    OperationQueue.mainQueue().addOperations([BlockOperation(block: block)], waitUntilFinished: false)
 }
