@@ -25,6 +25,8 @@ public class ActorSystem  {
 
 	let executor : Executor
 
+    public var allActors: [String : ActorRef] = [String : ActorRef]()
+
     /**
 		Create a new actor system
      
@@ -84,7 +86,10 @@ public class ActorSystem  {
     }
     
     public func selectActor(pathString : String) throws -> ActorRef {
-		return try self.supervisor.actorInstance!.selectChildActor(pathString: pathString)
+        if let actor : ActorRef = allActors[pathString] {
+            return actor;
+        }
+        throw InternalError.noSuchChild(pathString: pathString);
     }
     
     deinit {

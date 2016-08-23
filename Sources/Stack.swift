@@ -37,7 +37,7 @@ public class Stack<A> {
     */
     
     public func push(element : A) -> Void {
-        self.array.insert(element, at: 0)
+        self.array.append(element)
     }
     
     /**
@@ -45,12 +45,7 @@ public class Stack<A> {
     */
     
     public func pop() -> Optional<A> {
-        if let first = self.array.first {
-            self.array.removeFirst()
-            return first
-        } else {
-            return nil
-        }
+        return self.array.popLast();
     }
     
     /**
@@ -58,7 +53,7 @@ public class Stack<A> {
     */
     
     public func head() -> Optional<A> {
-        return self.array.first
+        return self.array.last
     }
     
     /**

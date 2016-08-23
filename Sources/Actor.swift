@@ -56,8 +56,6 @@ public class Actor {
     */
     private var _ref : ActorRef? = nil
 
-	private var dying = false
-
 	public var this: ActorRef {
 		if let ref = self._ref {
 			return ref
@@ -75,7 +73,8 @@ public class Actor {
         // Dispatch: Should be executed in protected
         let path = actorRef.path.asString
         self.this.children.removeValue(forKey: path)
-	    actorRef.actorInstance = nil
+        this.context.allActors.removeValue(forKey: path)
+        actorRef.actorInstance = nil
     }
     
 	/** 
@@ -102,6 +101,7 @@ public class Actor {
 		actorInstance.executor = this.context.executor
 		// Dispatch: Should be executed in protected
 		self.this.children[completePath] = ref
+        this.context.allActors[completePath] = ref
 		
         return ref
     }
@@ -116,32 +116,6 @@ public class Actor {
 		supervisorActor._ref = ref
 		supervisorActor.executor = context.executor
 		return ref
-	}
-
-	public func selectChildActor(pathString: String) throws -> ActorRef {
-		guard pathString.hasPrefix(this.path.asString) else {
-			throw InternalError.noSuchChild(pathString: pathString)
-		}
-
-        // Dispatch: Should wait for all actor creation task finished
-		/*dispatch_barrier_sync(underlyingQueue) { () in
-			// nothing, wait for enqueued changes to complete
-		}*/
-
-
-		if pathString == this.path.asString {
-			return this
-		} else {
-			let nextIdx = this.path.asString.characters.split(separator: "/").count
-			let nextPath: String = 
-   				"\(this.path.asString)/\(pathString.characters.split(separator: "/").map(String.init)[nextIdx])"
-			let next: ActorRef? = this.children[nextPath]
-			if let nextNode = next {
-				return try nextNode.actorInstance!.selectChildActor(pathString: pathString)
-			} else {
-				throw InternalError.invalidActorPath(pathString: pathString)
-			}
-		}
 	}
 
 	public func selectActor(pathString: String) throws -> ActorRef {
@@ -228,42 +202,21 @@ public class Actor {
 		not system related, then it calls the state at the head position of the
 		statesstack, if the stack is empty, then it calls the receive method
     */
-	final public func systemReceive(_ msg : Actor.Message) -> Void {
-        let realMsg = msg
+	final public func systemReceive(_ realMsg : Actor.Message) -> Void {
 		switch realMsg { 
 		case is Harakiri, is PoisonPill:
-			self.dying = true
-			self.willStop() 
+			self.willStop()
+
             // Dispatch: should be executed in protected
-				if self.this.children.count == 0 && self.this.supervisor != nil {
-					/**
-						The order of these two calls matters! Upon receiving
-						Terminated msg, supervisor checks the children size, and
-						the checking should only happen after stop() removes the
-						child.
-					*/
-					self.this.supervisor!.stop(self.this)
-					self.this.supervisor! ! Terminated(sender: self.this)
-				} else {
-					self.this.children.forEach({
-						(_,actorRef) in actorRef ! Harakiri(sender:self.this) 
-					})
-				}
+            self.this.children.forEach({ (_,actorRef) in
+                actorRef ! Harakiri(sender:this)
+            })
 
-		case is Terminated:
-			if dying {
-			    // Dispatch: should be executed in protected
-					if self.this.children.count == 0 {
-						if let supervisor = self.this.supervisor {
-							supervisor.stop(self.this)
-							supervisor ! Terminated(sender: self.this)
-						} else {
-							// This is the root of supervision tree
-							print("ActorSystem \(self.this.context.name) termianted")
-						}
-					}
-
-			}
+            if self.this.supervisor != nil {
+                self.this.supervisor!.stop(self.this);
+            } else {
+                print("ActorSystem \(self.this.context.name) termianted")
+            }
 		default: 
 			if let (name, state) : (String, Receive) = self.statesStack.head() { 
 				#if DEBUG 
@@ -317,6 +270,15 @@ public class Actor {
      */
     public func willStop() -> Void {
         
+    }
+
+    /** 
+        Method to calculate how much time has elapsed since "begin"
+     */
+    static public func latencyFrom(_ begin : timeval) -> Double {
+        var now = timeval(tv_sec: 0, tv_usec: 0)
+        gettimeofday(&now, nil)
+        return difftime(now.tv_sec, begin.tv_sec)*1000000 + Double(now.tv_usec - begin.tv_usec);
     }
 
 	/**

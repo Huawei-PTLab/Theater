@@ -16,6 +16,10 @@ class Request: Actor.Message {
         self.timestamp = timestamp
         super.init(sender: sender)
     }
+
+    //func setSender(sender: Optional<ActorRef>) {
+    //    super.init(sender: sender)
+    //}
     override var description : String {
         get {
             return "<\(self.dynamicType): client=\(client), server=\(server), timestamp=\(timestamp)>"
@@ -106,11 +110,7 @@ class Client: Actor {
         return { [unowned self] (msg: Message) in
                    switch msg {
                    case let response as Response:
-                       var now = timeval(tv_sec: 0, tv_usec: 0)
-
-                       gettimeofday(&now, nil)
-                       let latency = difftime(now.tv_sec, response.timestamp.tv_sec)*1000000
-                                     + Double(now.tv_usec - response.timestamp.tv_usec)
+                       let latency = Actor.latencyFrom(response.timestamp)
                        let record = RecordResult(client: response.client, latency: latency, sender: self.this)
                        self.monitor! ! record
 
@@ -145,6 +145,7 @@ class Server: Actor {
                 activeContainer[index] = container
                 #if DEBUG
                     print("\(Server.self).\(#function): create new container \(container)")
+                    print("latency till server sending to container: \(Actor.latencyFrom(request.timestamp))")
                 #endif
                 container ! Request(client: request.client, server: index,
                                     timestamp: request.timestamp, sender: request.sender)
@@ -186,6 +187,7 @@ class Container: Actor {
                    case let request as Request:
                        #if DEBUG
                        print("\(Container.self).\(#function): client=\(request.client) server=\(request.server), timestamp=\(request.timestamp)")
+                       print("latency till container sending to client: \(Actor.latencyFrom(request.timestamp))")
                        #endif
                        let response = Response(client: request.client, server: request.server, timestamp: request.timestamp, sender: self.this)
                        if let sender = request.sender {
