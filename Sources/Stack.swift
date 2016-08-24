@@ -39,7 +39,26 @@ public class Stack<A> {
     public func push(element : A) -> Void {
         self.array.append(element)
     }
-    
+
+    /**
+    Push an element of type A into the Stack and replace
+    the prev head if there is one
+
+    - parameter element : element to push
+    - return : the previous head
+    */
+
+    public func replaceHead(element : A) ->  Optional<A> {
+        if self.array.count == 0 {
+            self.array.append(element);
+            return nil;
+        } else {
+            let old = self.array[array.count - 1];
+            self.array[array.count - 1] = element;
+            return old;
+        }
+    }
+
     /**
     Pop an element from the Stack, if the stack is emplty, it returns None
     */
