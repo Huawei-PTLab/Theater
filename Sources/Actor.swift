@@ -181,12 +181,13 @@ public class Actor: NSObject {
          which is very useful for debugging
      */
     final public func become(_ name : String, state : Receive, discardOld: Bool) -> Void { 
-        if discardOld { 
-            let _ = self.statesStack.pop() 
+        if discardOld {
+             _ = self.statesStack.replaceHead(element: (name, state))
+        } else {
+             self.statesStack.push(element: (name, state))
         }
-        self.statesStack.push(element: (name, state)) 
     }
-    
+
     /**
         Pop the state at the head of the statesStack and go to the previous
         stored state
