@@ -163,8 +163,8 @@ public class Actor : NSObject {
      */
     
     final public func become(_ name : String, state : Receive, discardOld : Bool) -> Void  {
-        if discardOld { let _ = self.statesStack.pop() }
-        self.statesStack.push(element: (name, state))
+        if discardOld { let _ = self.statesStack.replaceHead(element: (name, state))}
+        else { self.statesStack.push(element: (name, state))}
     }
     
     /**
