@@ -7,7 +7,7 @@ class TheaterTests: XCTestCase {
 		let pp = PingPong()
 		sleep(3)
 		pp.stop()
-		sleep(3)	// wait for the stopping process to finish
+		sleep(1)	// wait for the stopping process to finish
 	}
 
 	func testGreetings() {
