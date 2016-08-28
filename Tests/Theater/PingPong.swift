@@ -16,16 +16,16 @@ class Ping : Actor {
     
     var counter = 0
     
-    override func receive(_ msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) throws {
         switch(msg) {
             case is Ball:
                 counter += 1
                 print("ping counter: \(counter)")
-                NSThread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
+                Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
                 msg.sender! ! Ball(sender: this)
             
             default:
-                super.receive(msg)
+                try super.receive(msg)
         }
     }
 }
@@ -33,16 +33,16 @@ class Ping : Actor {
 class Pong : Actor {
     var counter = 0
     
-    override func receive(_ msg: Actor.Message) {
+    override func receive(_ msg: Actor.Message) throws {
         switch(msg) {
         case is Ball:
             counter += 1
             print("pong counter: \(counter)")
-            NSThread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
+            Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
             msg.sender! ! Ball(sender: this)
             
         default:
-            super.receive(msg)
+            try super.receive(msg)
         }
     }
 }
@@ -54,8 +54,8 @@ public class PingPong {
     let pong : ActorRef
     
     public init() {
-        self.ping = system.actorOf(Ping.self, name: "ping")
-        self.pong = system.actorOf(Pong.self, name: "pong")
+        self.ping = system.actorOf({Ping()}, name: "ping")
+        self.pong = system.actorOf({Pong()}, name: "pong")
         kickOffGame()
     }
     

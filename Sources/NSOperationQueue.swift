@@ -1,64 +1,64 @@
-//
-//  NSOperationQueue.swift
-//  Actors
-//
-//  Created by Dario on 10/5/15.
-//  Copyright © 2015 dario. All rights reserved.
-//
+// //
+// //  NSOperationQueue.swift
+// //  Actors
+// //
+// //  Created by Dario on 10/5/15.
+// //  Copyright © 2015 dario. All rights reserved.
+// //
 
-import Foundation
+// import Foundation
 
-prefix operator ^ {}
+// prefix operator ^ {}
 
-/**
- Convenience operator that executes a block with type (Void) -> (Void) in the main queue.
+// /**
+//  Convenience operator that executes a block with type (Void) -> (Void) in the main queue.
  
- Replaces:
+//  Replaces:
  
- ```
- let blockOp = NSBlockOperation({
- print("blah")
- })
+//  ```
+//  let blockOp = NSBlockOperation({
+//  print("blah")
+//  })
  
- NSOperationQueue.mainQueue().addOperations([blockOp], waitUntilFinished: true)
+//  NSOperationQueue.mainQueue().addOperations([blockOp], waitUntilFinished: true)
  
- ```
+//  ```
  
- with
+//  with
  
- ```
- ^{print("blah")}
- ```
+//  ```
+//  ^{print("blah")}
+//  ```
  
- */
+//  */
 
-public prefix func ^ (block : (Void) -> (Void)) -> Void {
-    NSOperationQueue.mainQueue().addOperations([NSBlockOperation(block: block)], waitUntilFinished: true)
-}
+// public prefix func ^ (block : (Void) -> (Void)) -> Void {
+//     NSOperationQueue.mainQueue().addOperations([NSBlockOperation(block: block)], waitUntilFinished: true)
+// }
 
-prefix operator ^^ {}
+// prefix operator ^^ {}
 
-/**
- Convenience operator that executes a block with type (Void) -> (Void) in the main queue and blocks until it's finished.
+// /**
+//  Convenience operator that executes a block with type (Void) -> (Void) in the main queue and blocks until it's finished.
  
- Replaces:
+//  Replaces:
  
 
  
- ```
- NSOperationQueue.mainQueue().addOperationWithBlock({
- print("blah")
- })
- ```
+//  ```
+//  NSOperationQueue.mainQueue().addOperationWithBlock({
+//  print("blah")
+//  })
+//  ```
  
- with
+//  with
  
- ```
- ^^{print("blah")}
- ```
+//  ```
+//  ^^{print("blah")}
+//  ```
  
- */
+//  */
 
-public prefix func ^^ (block : (Void) -> (Void)) -> Void {
-    NSOperationQueue.mainQueue().addOperations([NSBlockOperation(block: block)], waitUntilFinished: false)
-}
+// public prefix func ^^ (block : (Void) -> (Void)) -> Void {
+//     NSOperationQueue.mainQueue().addOperations([NSBlockOperation(block: block)], waitUntilFinished: false)
+// }
