@@ -1,13 +1,14 @@
 //
-//  Actor.swift
-//  Actors
+// Copyright (c) 2015 Dario Lencina and Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
 //
-//  Created by Dario Lencina on 9/26/15.
-//  Copyright © 2015 dario. All rights reserved.
+// Actor.swift
+// The basic Actor definition
 //
 
 import Foundation
 import Dispatch
+
 infix operator ! {associativity left precedence 130}
 
 /**
