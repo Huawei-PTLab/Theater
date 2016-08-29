@@ -14,7 +14,7 @@ Major changes have been made in our version of Theator, including
 
 ## Install **swift** and **libdispatch**
 
-Install the latest Swift Trunk version, like Aug 26, 2016 from [Swift.org]("https://swift.org/download/#previews")
+Install the latest Swift Trunk version, like Aug 26, 2016 from [Swift.org](https://swift.org/download/#snapshots)
 
 The latest snapshot version has shipped with libdispatch. No additional compiling is required.
 
