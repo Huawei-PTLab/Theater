@@ -1,3 +1,11 @@
+//
+// Copyright (c) 2016 Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
+//
+// CloudEdge.swift
+// A simple Client/Server Actor system test case
+//
+
 import Theater
 import Glibc
 import Foundation

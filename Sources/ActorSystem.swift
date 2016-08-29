@@ -1,9 +1,9 @@
 //
-//  ActorContext.swift
-//  Actors
+// Copyright (c) 2015 Dario Lencina and Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
 //
-//  Created by Dario Lencina on 9/27/15.
-//  Copyright © 2015 dario. All rights reserved.
+// ActorSystem.swift
+// The ActorSystem implementation
 //
 
 import Foundation
@@ -11,47 +11,47 @@ import Dispatch
 
 
 /**
-	All actors live in 'ActorSystem'.
+    All actors live in 'ActorSystem'.
 
-	You might have more than 1 actor system.
+    You might have more than 1 actor system.
 */
 public class ActorSystem  {
     
     lazy private var supervisor: ActorRef = Actor.createSupervisorActor(name: self.name, context: self)
 
     /**
-		The name of the 'ActorSystem'
+        The name of the 'ActorSystem'
     */
-	public let name : String
+    public let name : String
 
-	private let dispatcher: Dispatcher
+    private let dispatcher: Dispatcher
 
     /**
-		Create a new actor system
+        Create a new actor system
      
-		- parameter name : The name of the ActorSystem
+        - parameter name : The name of the ActorSystem
     */
     public init(name : String, dispatcher: Dispatcher = DefaultDispatcher()) {
         self.name = name
-		self.dispatcher = dispatcher
+        self.dispatcher = dispatcher
     }
 
-	internal func assignQueue() -> DispatchQueue {
-		return dispatcher.assignQueue()
-	}
+    internal func assignQueue() -> DispatchQueue {
+        return dispatcher.assignQueue()
+    }
     
     /**
-		This is used to stop or kill an actor
+        This is used to stop or kill an actor
      
-		- parameter actorRef : the actorRef of the actor that you want to stop.
+        - parameter actorRef : the actorRef of the actor that you want to stop.
     */
     public func stop(_ actorRef : ActorRef) -> Void {
-        // supervisor!.stop(actorRef)	//TODO
+        // supervisor!.stop(actorRef)    //TODO
     }
     
     public func stop() {
-		print("[INFO] ActorSystem \(self.name) is terminating")
-		supervisor ! Actor.Harakiri(sender: nil)
+        print("[INFO] ActorSystem \(self.name) is terminating")
+        supervisor ! Actor.Harakiri(sender: nil)
     }
     
     /**
@@ -85,11 +85,11 @@ public class ActorSystem  {
      
     */
     public func actorOf(_ initialization : () -> Actor) -> ActorRef {
-		return supervisor.actorInstance!.actorOf(initialization)
+        return supervisor.actorInstance!.actorOf(initialization)
     }
     
     public func selectActor(pathString : String) throws -> ActorRef {
-		return try self.supervisor.actorInstance!.selectChildActor(pathString: pathString)
+        return try self.supervisor.actorInstance!.selectChildActor(pathString: pathString)
     }
     
     deinit {

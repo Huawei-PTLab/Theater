@@ -1,9 +1,9 @@
 //
-//  Actor.Message.swift
-//  Actors
+// Copyright (c) 2015 Dario Lencina and Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
 //
-//  Created by Dario Lencina on 9/26/15.
-//  Copyright © 2015 dario. All rights reserved.
+// Message.swift
+// The Message base class definition
 //
 
 import Foundation
@@ -45,7 +45,7 @@ extension Actor {
     
     public class PoisonPill : Message {}
 
-	public class Terminated: Message {}
+    public class Terminated: Message {}
 
     /**
     Convenient Message subclass which has an operationId that can be used to track a transaction or some sort of message that needs to be tracked
@@ -66,16 +66,16 @@ extension Actor {
         }
     }
 
-	/**
-		Wrapper for sending Errors as messages
-	*/
-	public class ErrorMessage: Message {
-		let error: Error
-		init(_ e: Error, sender: ActorRef) {
-			error = e
-			super.init(sender: sender)
-		}
-	}
+    /**
+        Wrapper for sending Errors as messages
+    */
+    public class ErrorMessage: Message {
+        let error: Error
+        init(_ e: Error, sender: ActorRef) {
+            error = e
+            super.init(sender: sender)
+        }
+    }
 
     /**
     This is an Actor System generated message that is sent to the sender when it tries to send a message to an Actor that has been stopped beforehand.

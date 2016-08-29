@@ -1,3 +1,11 @@
+//
+// Copyright (c) 2016 Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
+//
+// SupervisionTestse.swift
+// Test case to check the basic supervision mechanism
+//
+
 import XCTest
 import Foundation
 @testable import Theater

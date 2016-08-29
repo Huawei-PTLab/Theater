@@ -1,4 +1,13 @@
+//
+// Copyright (c) 2016 Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
+//
+// ActorRef.swift
+// The ActorRef implementation
+//
+
 import Foundation
+
 /**
 tomStringConverAn actor system has a tree like structure, ActorPath gives you an url like
     way to find an actor inside a given actor system.

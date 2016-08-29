@@ -1,3 +1,12 @@
+//
+// Copyright (c) 2016 Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
+//
+// SelectActorTests.swift
+// Test the feature that use a string path to find the right actor
+//
+
+
 import XCTest
 import Glibc
 import Foundation

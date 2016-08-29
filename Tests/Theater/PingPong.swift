@@ -1,10 +1,12 @@
 //
-//  PingPong.swift
-//  Actors
+// Copyright (c) 2015 Dario Lencina and Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
 //
-//  Created by Dario Lencina on 11/9/15.
-//  Copyright © 2015 dario. All rights reserved.
+// PingPong.swift
+// A simple example to test message deliver and actor system stop
 //
+
+
 
 import Foundation
 import Theater

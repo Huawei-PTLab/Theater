@@ -1,12 +1,11 @@
 //
-//  ArrayAsStack.swift
-//  Actors
+// Copyright (c) 2015 Dario Lencina and Huawei PT-Lab Open Source project authors.
+// Licensed under Apache License v2.0
 //
-//  Created by Dario on 10/5/15.
-//  Copyright © 2015 dario. All rights reserved.
+// Stack.swift
+// A simple Stack implementation based on Array
 //
 
-import Foundation
 
 /**
 Stack data structure implementation for general purposes.
