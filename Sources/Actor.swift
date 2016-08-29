@@ -9,7 +9,13 @@
 import Foundation
 import Dispatch
 
-infix operator ! {associativity left precedence 130}
+precedencegroup ActorMessageSendGroup {
+    associativity: left
+    higherThan: AssignmentPrecedence
+    lowerThan: TernaryPrecedence
+}
+infix operator ! : ActorMessageSendGroup
+//infix operator ! {associativity left precedence 130}
 
 /**
      '!' Is a shortcut for typing:
@@ -47,7 +53,7 @@ public typealias Receive = (Actor.Message) throws -> (Void)
      
     Which will be called when some other actor tries to ! (tell) you something
 */
-public class Actor: NSObject {
+open class Actor: NSObject {
     
     /**
         Here we save all the actor states
@@ -90,15 +96,15 @@ public class Actor: NSObject {
     /** 
         Generate a random name for the new actor
     */
-    public func actorOf(_ initialization: () -> Actor) -> ActorRef {
-        return actorOf(initialization, name: NSUUID.init().UUIDString)
+    public func actorOf(_ initialization: @escaping () -> Actor) -> ActorRef {
+        return actorOf(initialization, name: NSUUID().uuidString)
     }
 
     /**
         Pass in a new actor instance, wrap it with ActorRef and return the
         ActorRef
     */
-    public func actorOf(_ initialization: () -> Actor, name : String) -> ActorRef {
+    public func actorOf(_ initialization: @escaping () -> Actor, name : String) -> ActorRef {
         let actorInstance = initialization()
         //TODO: should we kill or throw an error when user wants to reuse address of actor?
         let completePath = "\(self.this.path.asString)/\(name)"
@@ -117,7 +123,7 @@ public class Actor: NSObject {
         return ref
     }
 
-    internal class func createSupervisorActor(name: String, context: ActorSystem) -> ActorRef {
+    class func createSupervisorActor(name: String, context: ActorSystem) -> ActorRef {
         let supervisorActor = Actor()
         let ref = ActorRef(
             path: ActorPath(path: "\(name)/user"), 
@@ -169,7 +175,7 @@ public class Actor: NSObject {
         - Parameter name: The name of the new state, it is used in the logs
         which is very useful for debugging
     */
-    final public func become(_ name : String, state : Receive) -> Void  {
+    final public func become(_ name : String, state : @escaping Receive) -> Void  {
         become(name, state : state, discardOld : false)
     }
     
@@ -181,7 +187,7 @@ public class Actor: NSObject {
          - Parameter name: The name of the new state, it is used in the logs
          which is very useful for debugging
      */
-    final public func become(_ name : String, state : Receive, discardOld: Bool) -> Void { 
+    final public func become(_ name : String, state : @escaping Receive, discardOld: Bool) -> Void { 
         if discardOld {
              _ = self.statesStack.replaceHead(element: (name, state))
         } else {
@@ -209,7 +215,7 @@ public class Actor: NSObject {
 
         - Parameter name: the state that you can to pop to.
     */
-    public func popToState(name : String) -> Void {
+    open func popToState(name : String) -> Void {
         if let (hName, _ ) = self.statesStack.head() {
             if hName != name {
                 unbecome()
@@ -305,11 +311,11 @@ public class Actor: NSObject {
     
         - Parameter msg: the incoming message
     */
-    public func receive(_ msg : Actor.Message) throws -> Void {
+    open func receive(_ msg : Actor.Message) throws -> Void {
         switch msg {
             default :
             #if DEBUG
-                print("message not handled \(msg.dynamicType)")
+                print("message not handled \(type(of:msg))")
             #endif
         }
     }
@@ -318,7 +324,7 @@ public class Actor: NSObject {
         User specifies handling of errors using this method.
         (learned from Akka)
     */
-    public func supervisorStrategy(errorMsg: ErrorMessage) -> Void {
+    open func supervisorStrategy(errorMsg: ErrorMessage) -> Void {
         switch(errorMsg) {
         default:
             print("\(self.this) got \(errorMsg.error) from child \(errorMsg.sender!)")
@@ -343,23 +349,23 @@ public class Actor: NSObject {
          Is called when an Actor is started. Actors are automatically started
          asynchronously when created. Empty default implementation.
     */
-    public func preStart() -> Void {
+    open func preStart() -> Void {
         
     }
     
     /**
          Method to allow cleanup
      */
-    public func willStop() -> Void {
+    open func willStop() -> Void {
         
     }
     
     /**
         Schedule Once is a timer that executes the code in block after seconds
     */
-    final public func scheduleOnce(_ seconds: Int, block : (Void) -> Void) {
+    final public func scheduleOnce(_ seconds: Int, block : @escaping (Void) -> Void) {
         //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
-        underlyingQueue.after(when: DispatchTime.now() + DispatchTimeInterval.seconds(seconds),
+        underlyingQueue.asyncAfter(deadline: DispatchTime.now() + DispatchTimeInterval.seconds(seconds),
                                    execute: block)
     }
 
@@ -367,7 +373,7 @@ public class Actor: NSObject {
         Schedule Once is a timer that executes the code in block after seconds
         and can cancle
     */
-    public typealias Task = (cancel : Bool) -> Void 
+    public typealias Task = (Bool) -> Void 
 
     //TODO
     // public func delay(time:TimeInterval, task: ()->() ) ->  Task? {     

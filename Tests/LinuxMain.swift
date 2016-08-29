@@ -8,7 +8,7 @@
 
 
 import XCTest
-@testable import TheaterTestSuite
+@testable import TheaterTests
 
 XCTMain([
      testCase(SelectActorTests.allTests),

@@ -15,7 +15,7 @@ extension Actor {
     */
 
     //@objc public class Message : NSObject {
-    public class Message : NSObject {
+    open class Message : NSObject {
         
         /**
         The ActorRef of the Actor that sent this message
@@ -27,7 +27,7 @@ extension Actor {
         The constuctor requires an Optional<ActorRef> to setup the sender
         */
         
-         public init(sender : Optional<ActorRef>) {
+        public init(sender : Optional<ActorRef>) {
             self.sender = sender
         }
         

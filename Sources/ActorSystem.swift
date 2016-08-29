@@ -67,7 +67,7 @@ public class ActorSystem  {
      var wsCtrl : ActorRef = actorSystem.actorOf(WSRViewController.self, name:  "WSRViewController")
      ```
     */
-    public func actorOf(_ initialization: () -> Actor, name : String) -> ActorRef {
+    public func actorOf(_ initialization: @escaping () -> Actor, name : String) -> ActorRef {
         return supervisor.actorInstance!.actorOf(initialization, name: name)
     }
     
@@ -84,7 +84,7 @@ public class ActorSystem  {
      ```
      
     */
-    public func actorOf(_ initialization : () -> Actor) -> ActorRef {
+    public func actorOf(_ initialization : @escaping () -> Actor) -> ActorRef {
         return supervisor.actorInstance!.actorOf(initialization)
     }
     

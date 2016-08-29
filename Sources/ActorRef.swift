@@ -38,7 +38,7 @@ public class ActorRef: CustomStringConvertible {
         For debugging
     */
     public var description: String {
-        return "<\(self.dynamicType): \(path)>"
+        return "<\(type(of:self)): \(path)>"
     }
     
     internal let context: ActorSystem
@@ -68,7 +68,7 @@ public class ActorRef: CustomStringConvertible {
     /**
         Called by Actor.actorOf
     */
-    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem, supervisor: ActorRef, initialization: () -> Actor) {
+    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem, supervisor: ActorRef, initialization: @escaping () -> Actor) {
         self.path = path
         self.actorInstance = actorInstance
         self.context = context

@@ -119,7 +119,7 @@ class HeadlessPing : Actor {
             case is Ball:
                 counter += 1
                 print("ping counter: \(counter)")
-                Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
+                Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
                 let selected = try? selectActor(pathString: "system/user/Pong")
                 if let pong = selected {
                     pong ! Ball(sender: nil)
@@ -138,7 +138,7 @@ class HeadlessPong : Actor {
         case is Ball:
             counter += 1
             print("pong counter: \(counter)")
-            Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
+            Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
             let selected = try? selectActor(pathString: "system/user/Ping")
             if let ping = selected {
                 ping ! Ball(sender: nil)

@@ -23,7 +23,7 @@ class Ping : Actor {
             case is Ball:
                 counter += 1
                 print("ping counter: \(counter)")
-                Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
+                Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
                 msg.sender! ! Ball(sender: this)
             
             default:
@@ -40,7 +40,7 @@ class Pong : Actor {
         case is Ball:
             counter += 1
             print("pong counter: \(counter)")
-            Thread.sleepForTimeInterval(1) //Never sleep in an actor, this is for demo!
+            Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
             msg.sender! ! Ball(sender: this)
             
         default:

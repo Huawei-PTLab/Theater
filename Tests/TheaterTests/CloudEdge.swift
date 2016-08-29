@@ -26,7 +26,7 @@ class Request: Actor.Message {
     }
     override var description : String {
         get {
-            return "<\(self.dynamicType): client=\(client), server=\(server), timestamp=\(timestamp)>"
+            return "<\(type(of:self)): client=\(client), server=\(server), timestamp=\(timestamp)>"
         }
     }
 }
@@ -250,11 +250,11 @@ class Monitor: Actor {
 
 
 func main() {
-    if Process.argc != 2 {
-        print("\(Process.arguments[0]) number")
+    if CommandLine.argc != 2 {
+        print("\(CommandLine.arguments[0]) number")
         exit(1)
     }
-    let count = Int(Process.arguments[1])
+    let count = Int(CommandLine.arguments[1])
     if count == nil {
         exit(2)
     }
