@@ -7,7 +7,6 @@
 //
 
 import XCTest
-import Glibc
 @testable import Theater
 
 class TheaterTests: XCTestCase {

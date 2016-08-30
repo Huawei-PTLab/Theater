@@ -8,7 +8,6 @@
 
 
 import XCTest
-import Glibc
 import Foundation
 @testable import Theater
 

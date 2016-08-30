@@ -6,9 +6,20 @@
 // The Dispatcher implementation.
 //
 
-
 import Dispatch 
 import Foundation
+#if os(Linux)
+import Glibc
+#endif
+
+
+func randomInt()->Int {
+    #if os(Linux)
+    return random()
+    #else
+    return Int(arc4random())
+    #endif
+}
 
 public protocol Dispatcher {
     func assignQueue() -> DispatchQueue
@@ -52,7 +63,7 @@ public class ShareDispatcher: Dispatcher {
             queueCount += 1
             systemQueue.async { () in 
                 self.queues.append(newQueue)
-                let randomNumber = Int(rand())
+                let randomNumber = randomInt()
                 if randomNumber % 2 == 0 {
                     self.randomQueue = newQueue
                 }
@@ -60,7 +71,7 @@ public class ShareDispatcher: Dispatcher {
             return newQueue
         } else {
             systemQueue.async { () in 
-                let randomNumber = Int(rand()) % self.maxQueues
+                let randomNumber = randomInt() % self.maxQueues
                 self.randomQueue = self.queues[randomNumber]
             }
             return randomQueue!

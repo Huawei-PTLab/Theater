@@ -53,7 +53,7 @@ public typealias Receive = (Actor.Message) throws -> (Void)
      
     Which will be called when some other actor tries to ! (tell) you something
 */
-open class Actor: NSObject {
+open class Actor {
     
     /**
         Here we save all the actor states
@@ -416,8 +416,7 @@ open class Actor: NSObject {
         should not call this directly, use  actorOf in the ActorSystem to create a
         new actor
     */
-    public override init() {
-        super.init()
+    public init() {
         self.preStart()
     }
 
