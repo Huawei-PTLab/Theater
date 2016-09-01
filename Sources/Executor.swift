@@ -6,8 +6,8 @@ public class Executor {
     typealias Task = ()->()
     var taskQueue = FastQueue<Task>(initSize:100)
 
-    func putAndRun(task:Task) {
-        taskQueue.enqueue(item:task)
+    func putAndRun(task: @escaping Task) {
+        taskQueue.enqueue(item:  task)
         if !running {
             running = true
             while let task = taskQueue.dequeue() {

@@ -26,7 +26,7 @@ public typealias Receive = (Actor.Message) -> (Void)
 	 
 	Which will be called when some other actor tries to ! (tell) you something
 */
-public class Actor {
+open class Actor {
     
     /**
 		Here we save all the actor states
@@ -81,7 +81,7 @@ public class Actor {
 		Generate a random name for the new actor
 	*/
     public func actorOf(_ actorInstance : Actor) -> ActorRef {
-        return actorOf(actorInstance, name: NSUUID.init().UUIDString)
+        return actorOf(actorInstance, name: NSUUID.init().uuidString)
     }
 
 	/**
@@ -91,6 +91,7 @@ public class Actor {
     public func actorOf(_ actorInstance : Actor, name : String) -> ActorRef {
         //TODO: should we kill or throw an error when user wants to reuse address of actor?
         let completePath = "\(self.this.path.asString)/\(name)"
+        //print("\(completePath)========")
         let ref = ActorRef(
 			path:ActorPath(path:completePath), 
 			actorInstance: actorInstance, 
@@ -136,7 +137,7 @@ public class Actor {
 		- Parameter name: The name of the new state, it is used in the logs
 		which is very useful for debugging
     */
-	final public func become(_ name : String, state : Receive) -> Void  {
+	final public func become(_ name : String, state : @escaping Receive) -> Void  {
 		become(name, state : state, discardOld : false)
 	}
     
@@ -148,9 +149,9 @@ public class Actor {
 		 - Parameter name: The name of the new state, it is used in the logs
 		 which is very useful for debugging
      */
-	final public func become(_ name : String, state : Receive, discardOld: Bool) -> Void { 
+	final public func become(_ name : String, state : @escaping Receive, discardOld: Bool) -> Void {
 	   if discardOld {
-               self.statesStack.replaceHead(element: (name, state))
+              let _ = self.statesStack.replaceHead(element: (name, state))
 	   } else {
               self.statesStack.push(element: (name, state))
            }
@@ -176,7 +177,7 @@ public class Actor {
 
 		- Parameter name: the state that you can to pop to.
     */
-    public func popToState(name : String) -> Void {
+    open func popToState(name : String) -> Void {
         if let (hName, _ ) = self.statesStack.head() {
             if hName != name {
                 unbecome()
@@ -192,7 +193,7 @@ public class Actor {
     /**
 		pop to root state
     */
-    public func popToRoot() -> Void {
+    open func popToRoot() -> Void {
         while !self.statesStack.isEmpty() {
             unbecome()
         }
@@ -237,11 +238,11 @@ public class Actor {
     
 		- Parameter msg: the incoming message
     */
-    public func receive(_ msg : Actor.Message) -> Void {
+    open func receive(_ msg : Actor.Message) -> Void {
         switch msg {
             default :
             #if DEBUG
-                print("message not handled \(msg.dynamicType)")
+                print("message not handled \(type(of: msg))")
             #endif
         }
     }
@@ -262,7 +263,7 @@ public class Actor {
 		 Is called when an Actor is started. Actors are automatically started
 		 asynchronously when created. Empty default implementation.
     */
-	public func preStart() -> Void {
+    open func preStart() -> Void {
         
     }
     

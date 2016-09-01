@@ -13,7 +13,7 @@ extension Actor {
     Actor send and receive objects that must subclass Message, the Message class provides a sender, which Actors can use to reply.
     */
 
-    public class Message : CustomStringConvertible {
+    open class Message : CustomStringConvertible {
         
         /**
         The ActorRef of the Actor that sent this message
@@ -29,7 +29,7 @@ extension Actor {
             self.sender = sender
         }
 
-        public var description: String { 
+        open var description: String {
             return "Actor.Message: \(Unmanaged.passUnretained(self).toOpaque())>" 
         }
         

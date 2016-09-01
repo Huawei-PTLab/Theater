@@ -25,7 +25,7 @@ public class ActorRef: CustomStringConvertible {
 	*/
 	public var description: String {
 		get {
-			return "<\(self.dynamicType): \(path.asString)>"
+            return "<\(type(of: self)): \(path.asString)>"
 		}
 	}
     
@@ -90,7 +90,10 @@ public class ActorRef: CustomStringConvertible {
 	}
 }
 
-infix operator ! {associativity left precedence 130}
+infix operator ! : SendMessagePrecedence
+precedencegroup SendMessagePrecedence {
+  associativity : left
+}
 
 /**
      '!' Is a shortcut for typing:
