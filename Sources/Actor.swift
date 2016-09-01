@@ -274,7 +274,6 @@ open class Actor {
                 underlyingQueue.async {
                     if self.this.children.count == 0 {
                         if let supervisor = self.this.supervisor {
-                            supervisor.stop(self.this)
                             supervisor ! Terminated(sender: self.this)
                         } else {
                             // This is the root of supervision tree
