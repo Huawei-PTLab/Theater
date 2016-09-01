@@ -252,13 +252,8 @@ open class Actor {
             self.willStop() 
             underlyingQueue.async { () in 
                 if self.this.children.count == 0 && self.this.supervisor != nil {
-                    /**
-                        The order of these two calls matters! Upon receiving
-                        Terminated msg, supervisor checks the children size, and
-                        the checking should only happen after stop() removes the
-                        child.
-                    */
-                    self.this.supervisor!.stop(self.this)
+                    // sender must not be null because supervisor needs this 
+                    // to remove current actor from children dictionary
                     self.this.supervisor! ! Terminated(sender: self.this)
                 } else {
                     self.this.children.forEach({
@@ -266,7 +261,11 @@ open class Actor {
                     })
                 }
             }
-        case is Terminated:
+        case let t as Terminated:
+            // Remove child actor from the children dictionary.
+            // If current actor is also waiting to die, check the size of children 
+            // and die right away if all children are already dead.
+            stop(t.sender!)
             if dying {
                 underlyingQueue.async {
                     if self.this.children.count == 0 {

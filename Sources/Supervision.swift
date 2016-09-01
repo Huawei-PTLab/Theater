@@ -32,7 +32,6 @@ extension ActorRef {
         if let actor = self.actorInstance {
             let oldQueue = actor.underlyingQueue!
             oldQueue.async {
-                print("debug \(self) is restarting")
                 self.actorInstance = self.initialization()
                 self.actorInstance!._ref = self
                 self.actorInstance!.underlyingQueue = oldQueue
