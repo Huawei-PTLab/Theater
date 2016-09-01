@@ -81,10 +81,12 @@ open class Actor {
         }
     }
 
+    /// Stop the current actor.
     public func stop() {
         this ! Harakiri(sender:nil)
     }
-    
+
+    /// Stop the current actor's child actor with an actorRef.
     public func stop(_ actorRef : ActorRef) -> Void {
         underlyingQueue.async { () -> Void in
             let path = actorRef.path.asString
@@ -120,6 +122,8 @@ open class Actor {
         underlyingQueue.async { () in 
             self.this.children[completePath] = ref
         }
+        //Now the actor is ready to use
+        actorInstance.preStart()
         return ref
     }
 
@@ -261,7 +265,7 @@ open class Actor {
                     })
                 }
             }
-        case let t as Terminated:
+        case let t as Terminated: //Child notifies this actor that it is stopped 
             // Remove child actor from the children dictionary.
             // If current actor is also waiting to die, check the size of children 
             // and die right away if all children are already dead.
@@ -345,19 +349,18 @@ open class Actor {
     }
     
     /**
-         Is called when an Actor is started. Actors are automatically started
-         asynchronously when created. Empty default implementation.
+        preStart() is called when an Actor is ready to start. Actors are automatically started
+        asynchronously when created. Different to init(), at the time this function is called, 
+        the actor has all properties set, like its actor reference. 
+        Empty default implementation. User can override it to create sub actors here.
     */
-    open func preStart() -> Void {
-        
-    }
+    open func preStart() -> Void {   }
     
     /**
-         Method to allow cleanup
+        willStop() is called when an Actor receive stop message and before any destruction 
+        operations. User can override this function to do cleanup.
      */
-    open func willStop() -> Void {
-        
-    }
+    open func willStop() -> Void {   }
     
     /**
         Schedule Once is a timer that executes the code in block after seconds
@@ -412,12 +415,11 @@ open class Actor {
 
     /**
         Default constructor used by the ActorSystem to create a new actor, you
-        should not call this directly, use  actorOf in the ActorSystem to create a
-        new actor
+        should not call this directly, use actorOf in the ActorSystem to create a
+        new actor. During the actor object constructing process, the actor is not ready
+        to use. As a result, user cannot create sub-actors of this actor here.
     */
-    public init() {
-        self.preStart()
-    }
+    public init() {   }
 
     deinit {
         #if DEBUG
