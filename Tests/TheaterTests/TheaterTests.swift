@@ -3,6 +3,13 @@ import Glibc
 @testable import Theater
 
 class TheaterTests: XCTestCase {
+    func testParentChild() {
+        let f = Family()
+        sleep(1) //Wait for finish
+        f.stop()
+
+    }
+
 	func testPingPong() {
 		let pp = PingPong()
 		sleep(1)
@@ -34,6 +41,7 @@ class TheaterTests: XCTestCase {
 
 	static var allTests: [(String, (TheaterTests) -> () throws -> Void)] {
 		return [
+            ("testParentChild", testParentChild),
 			("testPingPong", testPingPong),
 			("testGreetings", testGreetings),
 			("testCloudEdge", testCloudEdge),

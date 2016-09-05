@@ -104,6 +104,8 @@ open class Actor {
 		self.this.children[completePath] = ref
         this.context.allActors[completePath] = ref
 		
+        //Now the actor is ready to use
+        actorInstance.preStart()
         return ref
     }
 
@@ -288,9 +290,7 @@ open class Actor {
 		should not call this directly, use  actorOf in the ActorSystem to create a
 		new actor
     */
-	public init() {
-		self.preStart()
-	}
+	public init() { }
 
     deinit {
         #if DEBUG
