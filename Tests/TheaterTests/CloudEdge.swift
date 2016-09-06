@@ -14,6 +14,13 @@ let userName = "user"
 let serverName = "Server"
 let monitorName = "Monitor"
 
+/// Method to calculate how much time has elapsed since "begin"
+public func latencyFrom(_ begin : timeval) -> Double {
+    var now = timeval(tv_sec: 0, tv_usec: 0)
+    gettimeofday(&now, nil)
+    return difftime(now.tv_sec, begin.tv_sec)*1000000 + Double(now.tv_usec - begin.tv_usec);
+}
+
 class Request: Actor.Message {
     let client: Int
     let server: Int
@@ -117,8 +124,7 @@ class Client: Actor {
                        var now = timeval(tv_sec: 0, tv_usec: 0)
 
                        gettimeofday(&now, nil)
-                       let latency = difftime(now.tv_sec, response.timestamp.tv_sec)*1000000
-                                     + Double(now.tv_usec - response.timestamp.tv_usec)
+                       let latency = latencyFrom(response.timestamp)
                        let record = RecordResult(client: response.client, latency: latency, sender: self.this)
                        self.monitor! ! record
 
@@ -153,6 +159,7 @@ class Server: Actor {
                 activeContainer[index] = container
                 #if DEBUG
                     print("\(Server.self).\(#function): create new container \(container)")
+                    print("latency till server sending to container: \(latencyFrom(request.timestamp))")
                 #endif
                 container ! Request(client: request.client, server: index,
                                     timestamp: request.timestamp, sender: request.sender)
@@ -194,6 +201,7 @@ class Container: Actor {
                    case let request as Request:
                        #if DEBUG
                        print("\(Container.self).\(#function): client=\(request.client) server=\(request.server), timestamp=\(request.timestamp)")
+                       print("latency till container sending to client: \(latencyFrom(request.timestamp))")
                        #endif
                        let response = Response(client: request.client, server: request.server, timestamp: request.timestamp, sender: self.this)
                        if let sender = request.sender {
