@@ -3,20 +3,30 @@
 //  
 //
 //  Created by Xuejun Yang on 8/27/16
+//  Copyright Xuejun Yang @ Huawei
 //
 
-//import Foundation
 import Glibc
 
 /**
-Hash table implementation based on associative arrays and quadratic probing
+Hash table implementation based on associative arrays and quadratic probing.
+
+As a major difference from the official Swift Dictionary implementation, aside 
+from quadratic probing instead of linear probing, I use an array to track The
+keys should be put in a bucket, but relocated to another due to collisions. This 
+results in: 1) faster lookups; 2) faster deletions; 3) slower insertions; 
+4) slower resizings.
+
+Overall, the pros seem to outweight the cons. With a fixed number of insertions,
+bundle with a random number of deletions and lookups, this implementation shows 
+great performance gain over the official Swift Dictionary. However, I noticed
+the gains are shrinked when 1) the keys have less collisions and/or 2) there 
+are less deletions.
 */
 
-public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
-    private var tableSize = 8
+public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
+    private var tableSize = 2
     private var elementNum = 0
-    private let emptyKey : K
-    private let dummyValue : V
 
     /**
     Undelying array, do not modify it directly
@@ -28,38 +38,35 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
     private var relocatedTo: UnsafeMutablePointer<[Int]>
     
     /**
-    Stack default construction
+    Hash table default construction
      
     - returns : empty hash table
     */
-    public init(count: Int, emptyKey : K, dummyValue : V) {
-        self.emptyKey = emptyKey
-        self.dummyValue = dummyValue
-        
+    public init(count: Int = 2) {
         while tableSize < count  { tableSize <<= 1 }
-
-        self.keys = UnsafeMutablePointer<K>.allocate(capacity: tableSize) //ContiguousArray<K>(repeating: emptyKey, count: tableSize)
-        self.values = UnsafeMutablePointer<V>.allocate(capacity: tableSize) //ContiguousArray<V>(repeating: dummyValue, count: tableSize)
-        self.occupied = UnsafeMutablePointer<Bool>.allocate(capacity: tableSize) //ContiguousArray<Bool>(repeating: false, count: tableSize)
-        self.relocatedTo = UnsafeMutablePointer<[Int]>.allocate(capacity: tableSize) //ContiguousArray<[Int]>(repeating: [], count: tableSize)
+        self.keys = UnsafeMutablePointer<K>.allocate(capacity: tableSize)
+        self.values = UnsafeMutablePointer<V>.allocate(capacity: tableSize)
+        self.occupied = UnsafeMutablePointer<Bool>.allocate(capacity: tableSize)
+        self.relocatedTo = UnsafeMutablePointer<[Int]>.allocate(capacity: tableSize)
         for i in 0..<tableSize {
-            (self.keys + i).initialize(to: self.emptyKey)
-            (self.values + i).initialize(to: self.dummyValue)
             (self.occupied + i).initialize(to: false)
             (self.relocatedTo + i).initialize(to: [])
         }
     }
-
+    /*
     deinit {
-        self.keys.deinitialize(count: tableSize)
+        for i in 0..<tableSize {
+            if occupied[i] {
+                (self.values + i).deinitialize()
+                (self.keys + i).deinitialize()
+            }
+        }
+
         self.keys.deallocate(capacity:tableSize)
-        self.values.deinitialize(count: tableSize)
         self.values.deallocate(capacity:tableSize)
-        self.occupied.deinitialize(count: tableSize)
         self.occupied.deallocate(capacity:tableSize)
-        self.relocatedTo.deinitialize(count: tableSize)
         self.relocatedTo.deallocate(capacity:tableSize)
-    }
+    } */
 
     /**
     Property about the number of elements in the hash table
@@ -75,48 +82,41 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
     - parameter value: value to insert
     - return: whether a new entry is created or not
     */
-    public func set(key: K, value: V) -> Bool {
-       if key != self.emptyKey {
-            let sizeMinus1 = (tableSize - 1)
-            var index = key.hashValue & sizeMinus1
-            let origIndex = index
-            var probe = 0
-            //print("inserting " + String(describing: key) + " : " + String(describing: value))
-            while true {
-                // case 1: the desired bucket is empty -> insert new entry
-                if !self.occupied[index] {
-                    self.keys[index] = key
-                    self.values[index] = value
-                    self.occupied[index] = true
-                    if probe != 0 {
-                        self.relocatedTo[origIndex].append(index)
-                    }
-                    elementNum += 1
+    mutating public func set(key: K, value: V) -> Bool {
+        let sizeMinus1 = (tableSize - 1)
+        var index = key.hashValue & sizeMinus1
+        let origIndex = index
+        var probe = 0
+        //print("inserting " + String(describing: key) + " : " + String(describing: value))
+        while true {
+            // case 1: the desired bucket is empty -> insert new entry
+            if !self.occupied[index] {
+                (self.keys + index).initialize(to: key)
+                (self.values + index).initialize(to: value)
+                self.occupied[index] = true
+                if probe != 0 {
+                    self.relocatedTo[origIndex].append(index)
+                }
+                elementNum += 1
 
-                    // Grow the table if we are about to use up space
-                    if self.count >= sizeMinus1 {
-                        enlarge()
-                    }
-                    return true
-                } 
-                // case 2: the desired bucket is taken by the same key -> update value
-                else if self.keys[index] == key {
-                    self.values[index] = value
-                    return false
+                // Grow the table if we are about to use up space
+                if self.count >= (sizeMinus1 * 7 / 10) {
+                    enlarge()
                 }
-                // case 3: collision! -> use quadratic probing to find an available bucket
-                else {
-                    probe += 1
-                    index = (index + probe) & sizeMinus1
-                    if probe >= tableSize {
-                        // case 3a: table full! -> double the size
-                        enlarge()
-                        return set(key:key, value:value)
-                    }
-                }
+                return true
+            } 
+            // case 2: the desired bucket is taken by the same key -> update value
+            else if self.keys[index] == key {
+                self.values[index] = value
+                return false
+            }
+            // case 3: collision! -> use quadratic probing to find an available bucket
+            else {
+                probe += 1
+                index = (index + probe) & sizeMinus1
+                assert(probe < tableSize, "Failed to grow the table earlier")
             }
         }
-        return false;
     }
     
     /**
@@ -126,7 +126,7 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
     - return: the index in the associative array. -1 if not found
      */
 
-    private func findIndex(key: K, remove: Bool) -> Int {
+    private func findIndex(key: K) -> Int {
         let index = key.hashValue & (tableSize - 1)
         
         // case 1: the bucket is empty -> return not found
@@ -135,7 +135,7 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
             return -1
         } 
         
-        // case 2: the desired bucket is taken by the same key -> return value
+        // case 2: the desired bucket is taken by the same key -> return key index
         if self.keys[index] == key {
             return index
         }
@@ -144,9 +144,33 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
         for i in 0..<self.relocatedTo[index].count {
             let relocatedIndex = self.relocatedTo[index][i]
             if self.keys[relocatedIndex] == key {
-                if remove { 
-                    self.relocatedTo[index].remove(at: i) 
-                }
+                return relocatedIndex
+            }
+        }
+
+        // case 4: searched all table -> not found
+        return -1
+    }
+
+    mutating private func findAndRemoveRelocateIndex(key: K) -> Int {
+        let index = key.hashValue & (tableSize - 1)
+        
+        // case 1: the bucket is empty -> return not found
+        // We can do this because the move we did in remove function
+        if !self.occupied[index] {
+            return -1
+        } 
+        
+        // case 2: the desired bucket is taken by the same key -> return key index
+        if self.keys[index] == key {
+            return index
+        }
+            
+        // case 3: collision! -> use relocatedTo array to find its real location
+        for i in 0..<self.relocatedTo[index].count {
+            let relocatedIndex = self.relocatedTo[index][i]
+            if self.keys[relocatedIndex] == key {
+                self.relocatedTo[index].remove(at: i) 
                 return relocatedIndex
             }
         }
@@ -162,7 +186,7 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
      */
 
     public func get(key: K) -> V? {
-        let index = findIndex(key:key, remove: false)
+        let index = findIndex(key:key)
         if index != -1 { return self.values[index] }
         return nil
     }
@@ -174,8 +198,8 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
     - return: true if deleted. false if not found
      */
 
-    public func remove(key: K) -> Bool {
-        var index = findIndex(key:key, remove: true)
+    mutating public func remove(key: K) -> Bool {
+        var index = findAndRemoveRelocateIndex(key:key)
         if index != -1 {
             elementNum -= 1
 
@@ -187,16 +211,23 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
                 self.keys[index] = self.keys[relocatedToIndex]
                 self.values[index] = self.values[relocatedToIndex]
 
-                // deal with the next hole
+                // deal with the hole left by the above moving
                 index = relocatedToIndex
             }
             // mark the bucket as empty
             self.occupied[index] = false
+            // free the value and key
+            (self.values + index).deinitialize()
+            (self.keys + index).deinitialize()
 
             // TODO: check if we should shrink the table
             return true
         }
         return false
+    }
+
+    mutating public func removeValue(forKey: K) {
+        let _ = remove(key: forKey)
     }
 
     /**
@@ -208,16 +239,40 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
     public func isEmpty() -> Bool {
         return self.count == 0
     }
+
+    public func forEachValue(_ lambda: (V)->()) {
+        //var cnt = 0
+        for i in 0..<tableSize {
+            if occupied[i] {
+                lambda(values[i])
+                //cnt += 1
+                // early exit
+                //if cnt == self.count { break }
+            }
+        }
+    }
+
+    public func forEachKey(_ lambda: (K)->()) {
+        //var cnt = 0
+        for i in 0..<tableSize {
+            if occupied[i] {
+                lambda(keys[i])
+                //cnt += 1
+                // early exit 
+                //if cnt == self.count { break }
+            }
+        }
+    }
     
     /**
     Method to 4x the capacity of the table. All entries need to be copied
     */
-    public func enlarge() { return enlarge (toSize: tableSize * 4) }
+    mutating public func enlarge() { return enlarge (toSize: tableSize * 4) }
 
     /**
     Method to increase the capacity of the table to a given size. The size is normalized to 2 ^ n
     */
-    public func enlarge(toSize: Int) {
+    mutating public func enlarge(toSize: Int) {
         #if DEBUG 
         print("Table before enlarging: \(self)")
         #endif
@@ -227,31 +282,35 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
         #if DEBUG  
         print("Table size will be \(tableSize)")
         #endif
-        
+
         let newKeys = UnsafeMutablePointer<K>.allocate(capacity: tableSize)
         let newValues = UnsafeMutablePointer<V>.allocate(capacity: tableSize)
         let newFlags = UnsafeMutablePointer<Bool>.allocate(capacity: tableSize)
         let newRelocations = UnsafeMutablePointer<[Int]>.allocate(capacity: tableSize)
         for i in 0..<tableSize {
-            (newKeys + i).initialize(to: self.emptyKey)
-            (newValues + i).initialize(to: self.dummyValue)
             (newFlags + i).initialize(to: false)
             (newRelocations + i).initialize(to: [])
         }
-        elementNum = 0
 
         for i in 0..<origSize {
-            let key = self.keys[i]
-            let value = self.values[i]
             if self.occupied[i] {
+                let key = self.keys[i]
+                let value = self.values[i]
                 #if DEBUG 
-                print("inserting " + String(key) + ":" + String(value))
+                print("inserting " + String(describing: key) + ":" + String(describing: value))
                 #endif
 
                 var probe = 0;                      // how many times we've probed
                 let sizeMinus1 = tableSize - 1;
                 var index = key.hashValue & sizeMinus1;
                 let origIndex = index
+
+                // Shortcut???: the length of the relocation array tells us how many conflicts 
+                // we've had. Skip checking the already relocated-to buckets
+                //var probe = newRelocations[origIndex].count
+                //if probe > 0 {
+                //    index = newRelocations[origIndex].last!
+                //}
                 while probe < tableSize {
                     #if DEBUG  
                     print("table size: \(tableSize), size-1: \(sizeMinus1), index: \(index), probe: \(probe)") 
@@ -262,16 +321,14 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
                 }       
                 assert(probe < tableSize, "Error: Hash table gets full during enlarging");
 
-                newKeys[index] = key
-                newValues[index] = value
+                (newKeys + index).initialize(to: key)
+                (newValues + index).initialize(to: value)
                 newFlags[index] = true
                 if probe != 0 {
                     newRelocations[origIndex].append(index)
                 }
-                elementNum += 1
             }
         }
-        
 
         self.keys.deallocate(capacity: origSize)
         self.values.deallocate(capacity: origSize)
@@ -296,9 +353,9 @@ public final class Hashtable<K: Hashable, V> : CustomStringConvertible {
 			if elementNum == 0 { return "[]"}
             var str = "["
             for i in 0..<tableSize {
-                let key = self.keys[i]
-                let value = self.values[i]
                 if occupied[i] {
+                    let key = self.keys[i]
+                    let value = self.values[i]
                     if str != "[" { str += ", "}
                     str += String(describing: key) + ": " + String(describing: value)
                 }
@@ -368,24 +425,19 @@ func ==(x: MyKey, y: MyKey) -> Bool {
     return x.s == y.s
 }
 
-var insertOnly = false
-var noResizing = true
-
-var allKeys = [String]()
-var allValues = [Int]()
-var deleteIndices = [Int]()
-var lookupIndices = [Int]()
-let allLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
 /**
 Method to unit test the hash table with small number of entries
 */
 private func smallTest() {
-    let ht = Hashtable<String, Int>(count: 8, emptyKey:"", dummyValue:-1)
+    //print("11")
+    var ht = Hashtable<String, Int>(count: 8)
+    //print("22")
     let names = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen"]
     var i = 0;
     for name in names {
+        //print("33 \(name)")
         let _ = ht.set(key:name, value:i)
+        //print("44")
         i += 1
     }
 
@@ -417,6 +469,13 @@ private func smallTest() {
     print(ht)
 }
 
+var allKeys = [String]()
+var allValues = [Int]()
+var deleteIndices = [Int]()
+var lookupIndices = [Int]()
+var updateIndices = [Int]()
+let allLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 func generateKVs(count: Int) {
     allKeys = []
     allValues = []
@@ -441,52 +500,73 @@ func generateKVs(count: Int) {
 func generateDeleteAndLookupIndices(count : Int) {
     deleteIndices = []
     lookupIndices = []
+    updateIndices = []
 
     let num1 = random() % count
     for _ in 0..<num1 {
         deleteIndices.append(random() % count)
     }
-    print("Will delete \(num1) keys")
+    //print("Will delete \(num1) keys")
 
     let num2 = random() % count
-    for _ in 0..<num1 {
+    for _ in 0..<num2 {
         lookupIndices.append(random() % count)
     }
-    print("Will lookup \(num2) keys")
+    //print("Will lookup \(num2) keys")
+    
+    let num3 = random() % count
+    for _ in 0..<num3 {
+        updateIndices.append(random() % count)
+    }
+    //print("Will update \(num3) keys")
 }
 
-func perfTestDictionary(count:Int) -> Int {
+var insertOnly = false      // If true, we only do insertions to the table, nithing else
+var testDictionary = true
+var testHashtable = true
+
+func perfTestDictionary(count:Int) -> (Int, Int) {
     var sum = 0 
     let start = clock()
 
     // measure timing for the standard Dictionary
-    var ht = noResizing ? Dictionary<MyKey, MyVal>(minimumCapacity:count) : Dictionary<MyKey, MyVal>()
+    var ht = Dictionary<MyKey, MyVal>()
 
     // insert half of the pairs
     let mid = count/2
     for i in 0..<mid {
         ht[MyKey(allKeys[i])] = MyVal(allValues[i])
-    } 
-    //print("Hashtable: after first insert: \(ht.count)")
+    }
+
+    //print("Hashtable: after first insert: \(ht.count())")
 
     if !insertOnly {
-        // delete 1/2 of the entries in the table
+        // delete random number of entries in the table
         for index in deleteIndices {
-            let _ = ht.removeValue(forKey: MyKey(allKeys[index]))
+            ht.removeValue(forKey: MyKey(allKeys[index]))
         }
     }
- 
+   
     // insert 2nd half of the pairs
     for k in mid..<count {
         ht[MyKey(allKeys[k])] = MyVal(allValues[k])
     }
-    
+
+    // update random number of values
+    if (!insertOnly) {
+        for index in updateIndices {
+            let key = MyKey(allKeys[index])
+            ht[key] = MyVal(0)
+        }
+    }
+
+    // Sum up random number of values
     if !insertOnly {
         // lookup random number of entries
         for index in lookupIndices {
             let key = MyKey(allKeys[index])
             if let v = ht[key] {
-                sum += v.i 
+                sum = sum &+ v.i 
             }
         }
     }
@@ -494,15 +574,15 @@ func perfTestDictionary(count:Int) -> Int {
     let end = clock()
 
     print("Time used with Dictionary filled with objects: \((end-start)/1) us")
-    return sum;
+    return (sum, end-start);
 }
 
-func perfTestHashtable(count:Int) -> Int {
+func perfTestHashtable(count:Int) -> (Int, Int) {
     var sum = 0
     let start = clock()
 
     // measure timing for this implementation
-    let ht = Hashtable<MyKey, MyVal>(count: count, emptyKey: MyKey(""), dummyValue: MyVal(-1))
+    var ht = Hashtable<MyKey, MyVal>()
 
     // insert half of the pairs
     let mid = count/2
@@ -524,12 +604,21 @@ func perfTestHashtable(count:Int) -> Int {
         ht[MyKey(allKeys[k])] = MyVal(allValues[k])
     }
 
+    // update random number of values
+    if (!insertOnly) {
+        for index in updateIndices {
+            let key = MyKey(allKeys[index])
+            ht[key] = MyVal(0)
+        }
+    }
+
+    // Sum up random number of values
     if !insertOnly {
         // lookup random number of entries
         for index in lookupIndices {
             let key = MyKey(allKeys[index])
             if let v = ht[key] {
-                sum += v.i 
+                sum = sum &+ v.i 
             }
         }
     }
@@ -537,32 +626,45 @@ func perfTestHashtable(count:Int) -> Int {
     let end = clock()
 
     print("Time used with Hashtable filled with objects: \((end-start)/1) us. Collison rate: \(ht.collisionRate())%")
-    return sum;
+    return (sum, end-start);
 }
 
 private func bigTest() {
     var count = 100000
-    if CommandLine.arguments.count > 1 { count = Int(CommandLine.arguments[1])! }
-    if CommandLine.arguments.count > 2 { insertOnly = Bool(CommandLine.arguments[2])! }
-    if CommandLine.arguments.count > 3 { noResizing = Bool(CommandLine.arguments[3])! }
+    if CommandLine.arguments.count > 1 { 
+        count = Int(CommandLine.arguments[1])! 
+    }
+    if CommandLine.arguments.count > 2 {
+        print(CommandLine.arguments[2])
+        if CommandLine.arguments[2] == "Dict" { testDictionary = true; testHashtable = false }
+        else if CommandLine.arguments[2] == "Hash" { testDictionary = false; testHashtable = true }
+    }
 
     insertOnly = false
-    noResizing = false
-    print("count is \(count). insertOnly: \(insertOnly), noResizing: \(noResizing)")
+    print("count is \(count). insertOnly: \(insertOnly), testDictionary: \(testDictionary), testHashtable: \(testHashtable)")
 
-    for _ in 0..<3 {
+    let loops = 100
+    var totalTime1 = 0
+    var totalTime2 = 0
+    for i in 0..<loops {
         generateKVs(count: count)
         generateDeleteAndLookupIndices(count: count)
 
-        let i1 = perfTestDictionary(count: count)
-        let i2 = perfTestHashtable(count: count)
-        print("\(i1) vs \(i2)")
-        assert(i1 == i2, "The sum is different. \(i1) != \(i2)")
+        let (sum1, time1) = testDictionary ? perfTestDictionary(count: count) : (0, 0)
+        let (sum2, time2) = testHashtable ? perfTestHashtable(count: count) : (0, 0)
+        print("Iteration \(i): \(sum1) vs \(sum2)")
+        if testDictionary && testHashtable {
+            assert(sum1 == sum2, "Iteration \(i): the sums are different. \(sum1) != \(sum2)")
+        }
+        totalTime1 += time1
+        totalTime2 += time2
     }
+    print("Average time spent with Dictionary: \(totalTime1/100)")
+    print("Average time spent with Hashable: \(totalTime2/100)")
 }
 
 // Comment out tests to use Hashtable in an application
 //smallTest()
-//bigTest()
+bigTest()
 
 

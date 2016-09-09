@@ -41,9 +41,9 @@ class TheaterTests: XCTestCase {
 
 	static var allTests: [(String, (TheaterTests) -> () throws -> Void)] {
 		return [
-            ("testParentChild", testParentChild),
-			("testPingPong", testPingPong),
-			("testGreetings", testGreetings),
+            //("testParentChild", testParentChild),
+			//("testPingPong", testPingPong),
+			//("testGreetings", testGreetings),
 			("testCloudEdge", testCloudEdge),
 		]
 	}
