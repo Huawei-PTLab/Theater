@@ -14,8 +14,7 @@ extension Actor {
     Actor send and receive objects that must subclass Message, the Message class provides a sender, which Actors can use to reply.
     */
 
-    //@objc public class Message : NSObject {
-    open class Message : NSObject {
+    open class Message : CustomStringConvertible {
         
         /**
         The ActorRef of the Actor that sent this message
@@ -30,7 +29,10 @@ extension Actor {
         public init(sender : Optional<ActorRef>) {
             self.sender = sender
         }
-        
+       
+        open var description: String {
+             return "Actor.Message: \(Unmanaged.passUnretained(self).toOpaque())>" 
+        }
     }
 
     /**

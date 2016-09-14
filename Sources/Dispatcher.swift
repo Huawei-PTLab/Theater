@@ -8,9 +8,12 @@
 
 import Dispatch 
 import Foundation
-#if os(Linux)
+#if os(OSX) || os(iOS)
+import Darwin
+#elseif os(Linux)
 import Glibc
 #endif
+
 
 
 func randomInt()->Int {
@@ -46,35 +49,29 @@ public class ShareDispatcher: Dispatcher {
     /** 
         Ensure thead-safe access to type properties
     */
-    let systemQueue = DispatchQueue(label: "system")
+    let lock = NSLock()
     var queues = [DispatchQueue]()
     var randomQueue: DispatchQueue? = nil
-    let maxQueues = 10000
+    let maxQueues: Int
     var queueCount = 0
 
-    public init() {
+    public init(queues:Int) {
+        maxQueues = queues
         srandom(UInt32(NSDate().timeIntervalSince1970))
     }
 
     public func assignQueue() -> DispatchQueue {
+        lock.lock()
+        defer { lock.unlock() }
         if queueCount < maxQueues {
             let newQueue = DispatchQueue(label: "")
             if randomQueue == nil { randomQueue = newQueue }
             queueCount += 1
-            systemQueue.async { () in 
-                self.queues.append(newQueue)
-                let randomNumber = randomInt()
-                if randomNumber % 2 == 0 {
-                    self.randomQueue = newQueue
-                }
-            }
+            self.queues.append(newQueue)
             return newQueue
         } else {
-            systemQueue.async { () in 
-                let randomNumber = randomInt() % self.maxQueues
-                self.randomQueue = self.queues[randomNumber]
-            }
-            return randomQueue!
+            let randomNumber = randomInt() % self.maxQueues
+            return self.queues[randomNumber]
         }
     }
 
