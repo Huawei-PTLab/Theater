@@ -263,6 +263,14 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
             }
         }
     }
+
+    public func forEach(_ lambda: (K, V)->()) {
+        for i in 0..<tableSize {
+            if occupied[i] {
+                lambda(keys[i], values[i])
+            }
+        }
+    }
     
     /**
     Method to 4x the capacity of the table. All entries need to be copied
@@ -398,6 +406,81 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
         }
     }
 } 
+
+public struct ThreadSafeHashtable<K: Hashable, V> : CustomStringConvertible {
+    var hashtable: Hashtable<K, V>;
+    // Thread safe read-write lock
+    var lock = pthread_rwlock_t()
+    public init(count: Int = 2) {
+        hashtable = Hashtable<K, V>(count:count)
+        pthread_rwlock_init(&lock, nil)
+    }
+
+    mutating public func set(key: K, value: V) -> Bool {
+        pthread_rwlock_wrlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.set(key:key, value:value)
+    }
+
+    mutating public func get(key: K) -> V? {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.get(key:key)
+    }
+
+    mutating public func remove(key: K) -> Bool {
+        pthread_rwlock_wrlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.remove(key:key)
+    }
+
+    mutating public func isEmpty() -> Bool {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.isEmpty() 
+    }
+
+    // FIXME: description is not thread safe. But swift doesnot allow mutating get for description
+    public var description: String {
+        //pthread_rwlock_rdlock(&lock);
+        //defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.description
+    }
+
+    mutating public func forEachValue(_ lambda: (V)->()) {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        hashtable.forEachValue(lambda)
+    }
+
+
+    mutating public func forEachKey(_ lambda: (K)->()) {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        hashtable.forEachKey(lambda)
+    }
+
+    mutating public func forEach(_ lambda: (K, V)->()) {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        hashtable.forEach(lambda)
+    }
+
+    subscript(key: K) -> V? {
+        mutating get {
+            return get(key: key)
+        }
+        set {
+            if let value = newValue {
+                _ = set(key: key, value: value)
+            } else {
+                _ = remove(key: key)
+            }
+        }
+    }
+}
+
+
 
 /*********************************************************************************
  *              End of implementation. Test code below.
