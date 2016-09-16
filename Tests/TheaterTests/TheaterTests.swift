@@ -31,7 +31,7 @@ class TheaterTests: XCTestCase {
 
     func testCloudEdge() {
         let count = 1000
-        let system = ActorSystem(name: systemName)
+        let system = ActorSystem(name: systemName/*, dispatcher: ShareDispatcher(queues:1)*/)
         let _ = system.actorOf({Server()}, name: serverName)
         let monitor = system.actorOf({Monitor()}, name: monitorName)
         for i in 0..<count {

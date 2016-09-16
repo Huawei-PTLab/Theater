@@ -45,7 +45,14 @@ public class ActorRef: CustomStringConvertible {
 
     internal var supervisor: ActorRef?
 
-    internal var children: [String : ActorRef] = [String : ActorRef]()
+    internal var children = [String:ActorRef]()//Hashtable<String , ActorRef>()
+
+    let lock = NSLock() //A lock to protect children update
+    func sync<T>(_ closure: () -> T) -> T {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return closure()
+    }
 
     /**
          The Path to this ActorRef

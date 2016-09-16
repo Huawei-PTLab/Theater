@@ -88,8 +88,8 @@ open class Actor {
 
     /// Stop the current actor's child actor with an actorRef.
     public func stop(_ actorRef : ActorRef) -> Void {
-        underlyingQueue.async { () -> Void in
-            let path = actorRef.path.asString
+        let path = actorRef.path.asString
+        self.this.sync {
             self.this.children.removeValue(forKey: path)
             actorRef.actorInstance = nil
         }
@@ -119,7 +119,7 @@ open class Actor {
             )
         actorInstance._ref = ref
         actorInstance.underlyingQueue = this.context.assignQueue()
-        underlyingQueue.async { () in 
+        self.this.sync {  
             self.this.children[completePath] = ref
         }
         //Now the actor is ready to use
@@ -143,16 +143,14 @@ open class Actor {
         guard pathString.hasPrefix(this.path.asString) else {
             throw InternalError.noSuchChild(pathString: pathString)
         }
-        underlyingQueue.sync { () in
-            // nothing, wait for enqueued changes to complete
-        }
+
         if pathString == this.path.asString {
             return this
         } else {
             let nextIdx = this.path.asString.characters.split(separator: "/").count
             let nextPath: String = 
                    "\(this.path.asString)/\(pathString.characters.split(separator: "/").map(String.init)[nextIdx])"
-            let next: ActorRef? = this.children[nextPath]
+            let next: ActorRef? = self.this.sync{ this.children[nextPath] }
             if let nextNode = next {
                 return try nextNode.actorInstance!.selectChildActor(pathString: pathString)
             } else {
@@ -165,9 +163,13 @@ open class Actor {
         return try this.context.selectActor(pathString: pathString)
     }
 
-    // TODO
-    public func getChildrenActors() -> [String: ActorRef] {
-        return this.children
+    // FIXME: a better way, do a thread safe copy and returns the copy
+    public func getChildrenActors() -> [ActorRef] {
+        var childrenRefs:[ActorRef] = []
+        self.this.sync { 
+            this.children.forEach { (_, v) in childrenRefs.append(v)}
+        }
+        return childrenRefs
     }
     
     
@@ -254,15 +256,15 @@ open class Actor {
         case is Harakiri, is PoisonPill:
             self.dying = true
             self.willStop() 
-            underlyingQueue.async { () in 
+            self.this.sync {  
                 if self.this.children.count == 0 && self.this.supervisor != nil {
                     // sender must not be null because supervisor needs this 
                     // to remove current actor from children dictionary
                     self.this.supervisor! ! Terminated(sender: self.this)
                 } else {
-                    self.this.children.forEach({
+                    self.this.children.forEach {
                         (_,actorRef) in actorRef ! Harakiri(sender:self.this) 
-                    })
+                    }
                 }
             }
         case let t as Terminated: //Child notifies this actor that it is stopped 
@@ -271,7 +273,7 @@ open class Actor {
             // and die right away if all children are already dead.
             stop(t.sender!)
             if dying {
-                underlyingQueue.async {
+                self.this.sync {
                     if self.this.children.count == 0 {
                         if let supervisor = self.this.supervisor {
                             supervisor ! Terminated(sender: self.this)
