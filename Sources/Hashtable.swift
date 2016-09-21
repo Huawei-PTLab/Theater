@@ -6,7 +6,12 @@
 //  Copyright Xuejun Yang @ Huawei
 //
 
+#if os(OSX) || os(iOS)
+import Darwin
+#elseif os(Linux)
 import Glibc
+#endif
+
 
 /**
 Hash table implementation based on associative arrays and quadratic probing.
@@ -23,6 +28,13 @@ great performance gain over the official Swift Dictionary. However, I noticed
 the gains are shrinked when 1) the keys have less collisions and/or 2) there 
 are less deletions.
 */
+func random()->Int {
+    #if os(Linux)
+    return Glibc.random()
+    #else
+    return Int(arc4random())
+    #endif
+}
 
 public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
     private var tableSize = 2
@@ -610,7 +622,7 @@ var testHashtable = true
 
 func perfTestDictionary(count:Int) -> (Int, Int) {
     var sum = 0 
-    let start = clock()
+    let start = Int(clock())
 
     // measure timing for the standard Dictionary
     var ht = Dictionary<MyKey, MyVal>()
@@ -654,7 +666,7 @@ func perfTestDictionary(count:Int) -> (Int, Int) {
         }
     }
 
-    let end = clock()
+    let end = Int(clock())
 
     print("Time used with Dictionary filled with objects: \((end-start)/1) us")
     return (sum, end-start);
@@ -662,7 +674,7 @@ func perfTestDictionary(count:Int) -> (Int, Int) {
 
 func perfTestHashtable(count:Int) -> (Int, Int) {
     var sum = 0
-    let start = clock()
+    let start = Int(clock())
 
     // measure timing for this implementation
     var ht = Hashtable<MyKey, MyVal>()
@@ -706,7 +718,7 @@ func perfTestHashtable(count:Int) -> (Int, Int) {
         }
     }
 
-    let end = clock()
+    let end = Int(clock())
 
     print("Time used with Hashtable filled with objects: \((end-start)/1) us. Collison rate: \(ht.collisionRate())%")
     return (sum, end-start);
