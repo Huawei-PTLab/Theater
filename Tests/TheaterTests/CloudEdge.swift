@@ -88,12 +88,14 @@ class RecordResult: Actor.Message {
 class Client: Actor {
     static let serverPath = "\(systemName)/\(userName)/\(serverName)"
     static let monitorPath = "\(systemName)/\(userName)/\(monitorName)"
-    lazy var server: ActorRef? = {
-        return try? self.selectActor(pathString: Client.serverPath)
-    }()
-    lazy var monitor: ActorRef? = {
-        return try? self.selectActor(pathString: Client.monitorPath)
-    }()
+
+    init(server: ActorRef, monitor: ActorRef) {
+        self.server = server
+        self.monitor = monitor
+    }
+
+    let server: ActorRef
+    let monitor: ActorRef
 
     override func preStart() -> Void {
         super.preStart()
@@ -106,7 +108,7 @@ class Client: Actor {
                        let req = Request(client: request.client, server: request.server,
                                          timestamp: request.timestamp, sender: self.this)
                        gettimeofday(&req.timestamp, nil)
-                       self.server! ! req
+                       self.server ! req
                        self.become("waitResponse", state: self.waitResponse(), discardOld: true)
                        #if DEBUG
                        print("\(Client.self).\(#function): recv \(request) from \(request.sender)")
@@ -126,14 +128,14 @@ class Client: Actor {
                        gettimeofday(&now, nil)
                        let latency = latencyFrom(response.timestamp)
                        let record = RecordResult(client: response.client, latency: latency, sender: self.this)
-                       self.monitor! ! record
+                       self.monitor ! record
 
                        let notification = Notification(client: response.client, server: response.server, sender: self.this)
-                       self.server! ! notification
+                       self.server ! notification
                        #if DEBUG
                            print("\(Client.self).\(#function): recv \(response) from \(response.sender)")
-                           print("\(Client.self).\(#function): sent \(record) to \(self.monitor!)")
-                           print("\(Client.self).\(#function): sent \(notification) to \(self.server!)")
+                           print("\(Client.self).\(#function): sent \(record) to \(self.monitor)")
+                           print("\(Client.self).\(#function): sent \(notification) to \(self.server)")
                        #endif
                        self.stop()
                    default:
@@ -267,10 +269,10 @@ func main() {
         exit(2)
     }
     let system = ActorSystem(name: systemName)
-    let _ = system.actorOf(Server.init, name: serverName)
+    let server = system.actorOf(Server.init, name: serverName)
     let monitor = system.actorOf(Monitor.init, name: monitorName)
     for i in 0..<count! {
-        let client = system.actorOf(Client.init, name: "Client\(i)")
+        let client = system.actorOf({Client(server:server, monitor:monitor)}, name: "Client\(i)")
         let timestamp = timeval(tv_sec: 0, tv_usec:0)
         client ! Request(client: i, server: 0, timestamp: timestamp)
         usleep(1000)
