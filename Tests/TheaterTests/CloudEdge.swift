@@ -99,17 +99,16 @@ class Client: Actor {
 
     override func preStart() -> Void {
         super.preStart()
-        self.become("idle", state: self.idle(), discardOld: true)
+        self.become("idle", state: self.idle, discardOld: true)
     }
-    func idle() -> Receive {
-        return { [unowned self] (msg: Message) in
+    func idle(msg: Actor.Message) {
                    switch (msg){
                    case let request as Request:
                        let req = Request(client: request.client, server: request.server,
                                          timestamp: request.timestamp, sender: self.this)
                        gettimeofday(&req.timestamp, nil)
                        self.server ! req
-                       self.become("waitResponse", state: self.waitResponse(), discardOld: true)
+                       self.become("waitResponse", state: self.waitResponse, discardOld: true)
                        #if DEBUG
                        print("\(Client.self).\(#function): recv \(request) from \(request.sender)")
                        print("\(Client.self).\(#function): sent \(req) to \(self.server)")
@@ -117,10 +116,8 @@ class Client: Actor {
                    default:
                        break
                    }
-               }
     }
-    func waitResponse() -> Receive {
-        return { [unowned self] (msg: Message) in
+    func waitResponse(msg: Actor.Message) {
                    switch msg {
                    case let response as Response:
                        var now = timeval(tv_sec: 0, tv_usec: 0)
@@ -141,7 +138,6 @@ class Client: Actor {
                    default:
                        break
                    }
-               }
     }
 }
 class Server: Actor {
@@ -259,27 +255,27 @@ class Monitor: Actor {
 
 
 
-func main() {
-    if CommandLine.argc != 2 {
-        print("\(CommandLine.arguments[0]) number")
-        exit(1)
-    }
-    let count = Int(CommandLine.arguments[1])
-    if count == nil {
-        exit(2)
-    }
-    let system = ActorSystem(name: systemName)
+func simpleCase(count:Int) {
+    let system = ActorSystem(name: systemName, dispatcher:ShareDispatcher(queues:1))
     let server = system.actorOf(Server.init, name: serverName)
     let monitor = system.actorOf(Monitor.init, name: monitorName)
-    for i in 0..<count! {
+    for i in 0..<count {
         let client = system.actorOf({Client(server:server, monitor:monitor)}, name: "Client\(i)")
         let timestamp = timeval(tv_sec: 0, tv_usec:0)
         client ! Request(client: i, server: 0, timestamp: timestamp)
         usleep(1000)
     }
-    sleep(10)
+    sleep(3)
     monitor ! ShowResult(sender: nil)
     system.stop()
-    exit(0)
+    sleep(2)
 }
-// main()
+/*
+var count:Int = 1000
+if CommandLine.argc == 2, let c = Int(CommandLine.arguments[1]) {
+    count = c
+} else {
+    print("Wrong input or no input, use 1000 as input: \(CommandLine.arguments[0]) number")
+}
+simpleCase(count:count)
+*/
