@@ -8,7 +8,6 @@
 
 import Foundation
 import Theater
-import Glibc
 
 class Greeting : Actor.Message {}
 class Angry : Actor.Message {}

@@ -8,7 +8,6 @@
 
 import Foundation
 import Theater
-import Glibc
 
 class Ball : Actor.Message {}
 

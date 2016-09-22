@@ -6,7 +6,12 @@
 //  Copyright Xuejun Yang @ Huawei
 //
 
+#if os(OSX) || os(iOS)
+import Darwin
+#elseif os(Linux)
 import Glibc
+#endif
+
 
 /**
 Hash table implementation based on associative arrays and quadratic probing.
@@ -23,6 +28,13 @@ great performance gain over the official Swift Dictionary. However, I noticed
 the gains are shrinked when 1) the keys have less collisions and/or 2) there 
 are less deletions.
 */
+func random()->Int {
+    #if os(Linux)
+    return Glibc.random()
+    #else
+    return Int(arc4random())
+    #endif
+}
 
 public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
     private var tableSize = 2
@@ -263,6 +275,14 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
             }
         }
     }
+
+    public func forEach(_ lambda: (K, V)->()) {
+        for i in 0..<tableSize {
+            if occupied[i] {
+                lambda(keys[i], values[i])
+            }
+        }
+    }
     
     /**
     Method to 4x the capacity of the table. All entries need to be copied
@@ -349,8 +369,8 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
     Method to implement CustomStringConvertible
     */
     public var description: String {
-		get {
-			if elementNum == 0 { return "[]"}
+        get {
+            if elementNum == 0 { return "[]"}
             var str = "["
             for i in 0..<tableSize {
                 if occupied[i] {
@@ -362,8 +382,8 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
             }
             str += "]"
             return str
-		}
-	}
+        }
+    }
 
     /**
     Method to calculate collision rate as: 
@@ -398,6 +418,81 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
         }
     }
 } 
+
+public struct ThreadSafeHashtable<K: Hashable, V> : CustomStringConvertible {
+    var hashtable: Hashtable<K, V>;
+    // Thread safe read-write lock
+    var lock = pthread_rwlock_t()
+    public init(count: Int = 2) {
+        hashtable = Hashtable<K, V>(count:count)
+        pthread_rwlock_init(&lock, nil)
+    }
+
+    mutating public func set(key: K, value: V) -> Bool {
+        pthread_rwlock_wrlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.set(key:key, value:value)
+    }
+
+    mutating public func get(key: K) -> V? {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.get(key:key)
+    }
+
+    mutating public func remove(key: K) -> Bool {
+        pthread_rwlock_wrlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.remove(key:key)
+    }
+
+    mutating public func isEmpty() -> Bool {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.isEmpty() 
+    }
+
+    // FIXME: description is not thread safe. But swift doesnot allow mutating get for description
+    public var description: String {
+        //pthread_rwlock_rdlock(&lock);
+        //defer { pthread_rwlock_unlock(&lock); }
+        return hashtable.description
+    }
+
+    mutating public func forEachValue(_ lambda: (V)->()) {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        hashtable.forEachValue(lambda)
+    }
+
+
+    mutating public func forEachKey(_ lambda: (K)->()) {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        hashtable.forEachKey(lambda)
+    }
+
+    mutating public func forEach(_ lambda: (K, V)->()) {
+        pthread_rwlock_rdlock(&lock);
+        defer { pthread_rwlock_unlock(&lock); }
+        hashtable.forEach(lambda)
+    }
+
+    subscript(key: K) -> V? {
+        mutating get {
+            return get(key: key)
+        }
+        set {
+            if let value = newValue {
+                _ = set(key: key, value: value)
+            } else {
+                _ = remove(key: key)
+            }
+        }
+    }
+}
+
+
 
 /*********************************************************************************
  *              End of implementation. Test code below.
@@ -527,7 +622,7 @@ var testHashtable = true
 
 func perfTestDictionary(count:Int) -> (Int, Int) {
     var sum = 0 
-    let start = clock()
+    let start = Int(clock())
 
     // measure timing for the standard Dictionary
     var ht = Dictionary<MyKey, MyVal>()
@@ -571,7 +666,7 @@ func perfTestDictionary(count:Int) -> (Int, Int) {
         }
     }
 
-    let end = clock()
+    let end = Int(clock())
 
     print("Time used with Dictionary filled with objects: \((end-start)/1) us")
     return (sum, end-start);
@@ -579,7 +674,7 @@ func perfTestDictionary(count:Int) -> (Int, Int) {
 
 func perfTestHashtable(count:Int) -> (Int, Int) {
     var sum = 0
-    let start = clock()
+    let start = Int(clock())
 
     // measure timing for this implementation
     var ht = Hashtable<MyKey, MyVal>()
@@ -623,7 +718,7 @@ func perfTestHashtable(count:Int) -> (Int, Int) {
         }
     }
 
-    let end = clock()
+    let end = Int(clock())
 
     print("Time used with Hashtable filled with objects: \((end-start)/1) us. Collison rate: \(ht.collisionRate())%")
     return (sum, end-start);
