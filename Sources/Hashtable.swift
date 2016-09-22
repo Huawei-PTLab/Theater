@@ -665,6 +665,6 @@ private func bigTest() {
 
 // Comment out tests to use Hashtable in an application
 //smallTest()
-bigTest()
+//bigTest()
 
 

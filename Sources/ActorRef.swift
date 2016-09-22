@@ -109,6 +109,7 @@ precedencegroup SendMessagePrecedence {
      ```
  */
 
+@_transparent
 public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
     actorRef.tell(msg)
 }

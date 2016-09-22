@@ -77,26 +77,25 @@ class RecordResult: Actor.Message {
 class Client: Actor {
     static let serverPath = "\(systemName)/\(userName)/\(serverName)"
     static let monitorPath = "\(systemName)/\(userName)/\(monitorName)"
-    lazy var server: ActorRef? = {
-		return try? self.selectActor(pathString: Client.serverPath)
-	}()
-    lazy var monitor: ActorRef? = {
-		return try? self.selectActor(pathString: Client.monitorPath)
-	}()
+    let server: ActorRef
+    let monitor: ActorRef
 
+    init(server:ActorRef, monitor:ActorRef) {
+        self.server = server
+        self.monitor = monitor
+    }
     override func preStart() -> Void {
         super.preStart()
-        self.become("idle", state: self.idle(), discardOld: true)
+        self.become("idle", state: self.idle, discardOld: true)
     }
-    func idle() -> Receive {
-        return { [unowned self] (msg: Message) in
+    func idle(msg: Message) {
                    switch (msg){
                    case let request as Request:
                        let req = Request(client: request.client, server: request.server,
                                          timestamp: request.timestamp, sender: self.this)
                        gettimeofday(&req.timestamp, nil)
-                       self.server! ! req
-                       self.become("waitResponse", state: self.waitResponse(), discardOld: true)
+                       self.server ! req
+                       self.become("waitResponse", state: self.waitResponse, discardOld: true)
                        #if DEBUG
                        print("\(Client.self).\(#function): recv \(request) from \(request.sender)")
                        print("\(Client.self).\(#function): sent \(req) to \(self.server)")
@@ -104,28 +103,25 @@ class Client: Actor {
                    default:
                        break
                    }
-               }
     }
-    func waitResponse() -> Receive {
-        return { [unowned self] (msg: Message) in
+    func waitResponse(msg: Message) {
                    switch msg {
                    case let response as Response:
                        let latency = Actor.latencyFrom(response.timestamp)
                        let record = RecordResult(client: response.client, latency: latency, sender: self.this)
-                       self.monitor! ! record
+                       self.monitor ! record
 
                        let notification = Notification(client: response.client, server: response.server, sender: self.this)
-                       self.server! ! notification
+                       self.server ! notification
                        #if DEBUG
                            print("\(Client.self).\(#function): recv \(response) from \(response.sender)")
-                           print("\(Client.self).\(#function): sent \(record) to \(self.monitor!)")
-                           print("\(Client.self).\(#function): sent \(notification) to \(self.server!)")
+                           print("\(Client.self).\(#function): sent \(record) to \(self.monitor)")
+                           print("\(Client.self).\(#function): sent \(notification) to \(self.server)")
                        #endif
                        self.stop()
                    default:
                        break
                    }
-               }
     }
 }
 class Server: Actor {
@@ -179,10 +175,9 @@ class Server: Actor {
 class Container: Actor {
     override func preStart() -> Void {
         super.preStart()
-        self.become("idle", state: self.idle(), discardOld: true)
+        self.become("idle", state: self.idle, discardOld: true)
     }
-    func idle() -> Receive {
-        return { [unowned self] (msg: Message) in
+    func idle(msg: Message) {
                    switch (msg){
                    case let request as Request:
                        #if DEBUG
@@ -192,7 +187,7 @@ class Container: Actor {
                        let response = Response(client: request.client, server: request.server, timestamp: request.timestamp, sender: self.this)
                        if let sender = request.sender {
                            sender ! response
-                           self.become("waitNotification", state: self.waitNotification(), discardOld: true)
+                           self.become("waitNotification", state: self.waitNotification, discardOld: true)
                            #if DEBUG
                            print("\(Container.self).\(#function): sent \(response) to \(sender)")
                            #endif
@@ -202,15 +197,12 @@ class Container: Actor {
                    default:
                        break
                    }
-               }
     }
-    func waitNotification() -> Receive {
-        return { [unowned self] (msg: Message) in
-                   self.become("idle", state: self.idle(), discardOld: true)
+    func waitNotification(msg: Message) {
+                   self.become("idle", state: self.idle, discardOld: true)
                    #if DEBUG
                    print("\(Container.self).\(#function): recv \(msg) from \(msg.sender)")
                    #endif
-               }
     }
 }
 
@@ -243,27 +235,27 @@ class Monitor: Actor {
 
 
 
-func main() {
-    if CommandLine.argc != 2 {
-        print("\(CommandLine.arguments[0]) number")
-        exit(1)
-    }
-    let count = Int(CommandLine.arguments[1])
-    if count == nil {
-        exit(2)
-    }
+func simpleCase(count:Int) {
     let system = ActorSystem(name: systemName)
-    let _ = system.actorOf(Server(), name: serverName)
+    let server = system.actorOf(Server(), name: serverName)
     let monitor = system.actorOf(Monitor(), name: monitorName)
-    for i in 0..<count! {
-        let client = system.actorOf(Client(), name: "Client\(i)")
+    for i in 0..<count {
+        let client = system.actorOf(Client(server:server, monitor:monitor), name: "Client\(i)")
         let timestamp = timeval(tv_sec: 0, tv_usec:0)
         client ! Request(client: i, server: 0, timestamp: timestamp)
         usleep(1000)
     }
-    sleep(10)
+    sleep(3)
     monitor ! ShowResult(sender: nil)
     system.stop()
-    exit(0)
+    sleep(2)
 }
-// main()
+/*
+var count:Int = 1000
+if CommandLine.argc == 2, let c = Int(CommandLine.arguments[1]) {
+    count = c
+} else {
+    print("Wrong input or no input, use 1000 as input: \(CommandLine.arguments[0]) number")
+}
+simpleCase(count:count)
+*/
