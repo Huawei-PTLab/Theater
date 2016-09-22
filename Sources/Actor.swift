@@ -31,6 +31,7 @@ infix operator ! : ActorMessageSendGroup
      ```
  */
 
+@_transparent
 public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
     let unmanaged = Unmanaged.passRetained(msg)
     actorRef.tell(unmanaged)
