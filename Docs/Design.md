@@ -1,67 +1,71 @@
-= Introduction =
+# Introduction
 
-This document describes some design decisions we made in writing swift version Theater library. The design and implementation is totally different to the original Theter library. 
+This document describes some design decisions we made in writing swift version Theater library. The design and implementation is totally different to the original Theter library from Dario A Lencina-Talarico.
 
 
-= Basic Actor Classes =
+# Basic Actor Classes
 
-We follows AKKA's way to implement an actor with three classes
+We follows AKKA's way to implement the actor with three parts
 * Actor: The minimal part of actor, user provided. It may fail. 
-* ActorCell: The context of one actor. Runtime provided. Never fails.
-* ActorRef: A reference to a ActorCell. It can be passed around, and used by others to send message to the actor.
+* ActorCell: The context of an Actor. Library provided. Never fails.
+* ActorRef: A reference to a ActorCell. It can be passed around, and used by others to send message to the ActorCell.
 
-== Actor ==
-Actor only contains user's code logic to handle a message. 
+## Actor
+Actor only contains user's code logic to handle a message. The main routine is `receive(msg:Message)`, or it can start a FSM and process message in a FSM way.
 
-== ActorCell ==
-It contains all the context information for an actor. Even an actor fails, and is restarted, all the context information should be still there.
+## ActorCell
+It contains all the context information for an actor. When an actor fails, all the context information should be still there. Then the context information can be used to restart the actor.
 
-Context information includes the current location, children (the current actor supervise), parent (the current actor's supervisor). The message queue. The state machine's stack. 
+Context information includes the current location, children (the current actor supervise), parent (the current actor's supervisor). The message queue (so no message will get lost even an actor is fails). The actor's FSM's state stack. Although the stack is in the context, the stack will be cleaned when an actor restarts. 
 
-== ActorRef ==
+## ActorRef
 
-Contains the location information, and reference to actor cell.
+Contains the location information, and reference to the ActorCell.
 
-== Life Cycles ==
-=== Creation ===
-Actor system (one actor cell) use actorOf to create an actor.
+## Life Cycles
+### Creation
+Actor system (one actor cell) uses `actorOf()` to create an actor.
 * Create another cell, and add it into its children
-* 
+* Create an actorRef to the cell
+* Create the actor instance, and set its context(actorCell) and ref (this)
 
 
-== Connection relationships ==
+## Connection relationships
 
+Because Swift's RC mechanism, we should carefully design the reference relationships to prevent refernece cycle.
 
-==
-
+```
 Actor -> .context/unowned  -> ActorCell 
       <-  .actor/optional Strong <-
-Problem here? actor is freed??
-ActorCell -> .this/unowned -> ActorRef
-           <- .context/Weak <- 
-           
-           
-Only path: 
-ActorCell:
-In:  parent context's children field
-In:  Actor: unowned
-In:  actoreRef: weak. may not contain value
+      
+Free an actor: set ActorCell.actor = nil or another actor.
+Cannot set ActorCell.actor as non-optional because of the initialization order.
+Actor.this is a read property of .context.this
 
-Out: actor: Strong 
-Out: this: unowned
-Out: Children: Strong
+ActorCell -> .this/unowned -> ActorRef
+           <- .context/optional Weak <- 
+           
+In summary
+ActorCell:
+In:  parent ActorCell context's children field, strong
+In:  Actor: unowned
+In:  ActoreRef: weak. may not contain value
+
+Out: Actor .actor: optional Strong 
+Out: ActorRef .this: unowned
+Out: Children to ActorCell: Strong
 
 Actor:
-In: context's actor: Strong
-Out: to ActorCell: unowned
+In: context's .actor: Strong
+Out: ActorCell .context: unowned
 
 ActorRef:
 In: No default Strong In. Who uses it who owns it
-    context's this. : unowned
-Out: context: weak. 
-        
+    ActorCell context .this. : unowned
+Out: .context: weak. 
+```        
 
-== Creation Sequence ==
+## Creation Sequence
 
 In a context's actorOf, 
 1. Create the actorRef with the new name and context's this's path.
@@ -72,12 +76,12 @@ In a context's actorOf,
 5. Update context's actor field. 
 
 
-
-= Problem of Putting Children Actor creation in init() or ActorFields =
+# Design Dilemma
+## Problem of Putting Children Actor creation in current actor's constructor `init()` or current's actor's fields.
 
 Suppose we want to create an child actor in the current actor. We need the context of the current actor to do that.
 ```
-class Actor { var context:ActorCell } //has the context in the super class
+class Actor { unowned var context:ActorCell! } //has the context in the super class
 class MyActor : Actor  {
   let oneActor : ActorRef
   init(...) {
@@ -87,23 +91,24 @@ class MyActor : Actor  {
 ```
 
 The problem here is we cannot initialize context in Swift's class initialization model.
-Swift requires child class initialize all before initializing its super class. 
+Swift requires child class initialize all its fields before initializing its super class. 
 
-So we have to do this in the prestart(). At that point, the context is set.
+So we have to do `oneActor = context.actorOf(...)` in the prestart(). At that point, the context is set.
 
 We need pass in the context for the current actor, so that the current actor can
 use it to create its child actor. The problem here is how to pass in the context.
 
-The current actor can look into the thread local map to look for the latest context.
+The current AKKA can look into the thread local map to look for the latest context. In our design, we just use exteral set to do that.
 
 
-
-
-
-
-
-
-
-
-= Support Different Execution Platform =
+# Support Different Paralel Executor 
+We plan to support these exectuors
+* Default Dispatcher
+  Each ActorCell has a LibDispatch Queue. Mssage queue is also the operation queue
+* Share Dispatcher
+  All actors share N libDispatch Queue. Random assign at the beginning
+* Sequential Dispatcher
+  Each actor has its own message queue. A simple sequential executor based on task queue for operation scheduling
+* Parallel Dispatcher
+  Each actor has its own message queue. A shared libDispatch parallel queue for operation scheduling
 
