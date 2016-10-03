@@ -11,85 +11,63 @@ import Dispatch
 
 
 /**
-    All actors live in 'ActorSystem'.
-
-    You might have more than 1 actor system.
+    All actors live in 'ActorSystem'. You might have more than 1 actor system.
+    ActorSystem is a special actorcell, with some special error handling mechanism
 */
-public class ActorSystem  {
-    
-    lazy private var supervisor: ActorRef = Actor.createSupervisorActor(name: self.name, context: self)
+public class ActorSystem : CustomStringConvertible {
 
-    /**
-        The name of the 'ActorSystem'
-    */
+    /// The name of this ActorSystem
     public let name : String
 
-    private let dispatcher: Dispatcher
+    public var description: String {
+        return "ActorSystem[\(name)]"
+    }
 
-    /**
-        Create a new actor system
-     
-        - parameter name : The name of the ActorSystem
-    */
+    /// The dispatcher used for the whole system
+    private var dispatcher: Dispatcher = DefaultDispatcher()
+
+    /// The rootRef of this system
+    private let rootRef:ActorRef
+
+
+
+    /// Create the actor system
+    /// - parameter name: The name of the actor system
+    /// - parameter dispatcher: The dispatcher used for the actor system. Default is DefaultDispatcher
     public init(name : String, dispatcher: Dispatcher = DefaultDispatcher()) {
+
+
         self.name = name
         self.dispatcher = dispatcher
+
+        rootRef = ActorRef(path: ActorPath(path:"/user"))
+        let rootContext = ActorCell(system:self,
+                                    parent:nil,
+                                    actorConstructor: Actor.init,
+                                    actorRef:rootRef)
+        rootRef.actorCell = rootContext
+        rootContext.actor = Actor(context:rootContext)
+
+
     }
 
     internal func assignQueue() -> DispatchQueue {
         return dispatcher.assignQueue()
     }
-    
-    /**
-        This is used to stop or kill an actor
-     
-        - parameter actorRef : the actorRef of the actor that you want to stop.
-    */
-    public func stop(_ actorRef : ActorRef) -> Void {
-        // supervisor!.stop(actorRef)    //TODO
+
+
+    public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
+                        name: String) -> ActorRef {
+        return rootRef.actorCell!.actorOf(actorConstructor, name:name)
     }
-    
+
+    public func selectActor(pathString : String, by requestor:ActorRef,
+                            _ action:@escaping (ActorRef?)->Void) {
+        rootRef ! Actor.ActorSelect(path:pathString, sender:requestor, action)
+    }
+
     public func stop() {
-        print("[INFO] ActorSystem \(self.name) is terminating")
-        supervisor ! Actor.Harakiri(sender: nil)
-    }
-    
-    /**
-    This method is used to instantiate actors using an Actor class as the 'blueprint' and assigning a unique name to it.
-     
-    - parameter clz: Actor Class
-    - parameter name: name of the actor, it has to be unique
-    - returns: Actor ref instance
-     
-     ## Example
-     
-     ```
-     var wsCtrl : ActorRef = actorSystem.actorOf(WSRViewController.self, name:  "WSRViewController")
-     ```
-    */
-    public func actorOf(_ initialization: @escaping () -> Actor, name : String) -> ActorRef {
-        return supervisor.actorInstance!.actorOf(initialization, name: name)
-    }
-    
-    /**
-     This method is used to instantiate actors using an Actor class as the 'blueprint' and assigning a unique name to it.
-     
-     - parameter clz: Actor Class
-     - returns: Actor ref instance with a random UUID as name
-     
-      ##Example:
-     
-     ```
-     var wsCtrl : ActorRef = actorSystem.actorOf(WSRViewController.self)
-     ```
-     
-    */
-    public func actorOf(_ initialization : @escaping () -> Actor) -> ActorRef {
-        return supervisor.actorInstance!.actorOf(initialization)
-    }
-    
-    public func selectActor(pathString : String) throws -> ActorRef {
-        return try self.supervisor.actorInstance!.selectChildActor(pathString: pathString)
+        rootRef.actorCell!.stop()
     }
     
     deinit {
@@ -97,11 +75,4 @@ public class ActorSystem  {
             print("killing ActorSystem: \(name)")
         #endif
     }
-}
-
-/**
-The first rule about actors is that you should not access them directly, you always talk to them through it's ActorRef, but for testing sometimes is really convenient to just get the actor and inspect it's properties, that is the reason why we provide 'TestActorSystem' please do not use it in your AppCode, only in tests.
-*/
-
-public class TestActorSystem : ActorSystem {
 }

@@ -15,6 +15,10 @@ tomStringConverAn actor system has a tree like structure, ActorPath gives you an
     For now ActorPath only stores a String path. In the future this class can
     be extended to store network path, communication protocol, etc. 
 */
+
+/// ActorPath is used to locate mark the location of an ActorRef
+/// The simple ActorRef points to a local ActorCell, and the ActorPath is just a simple url String
+/// ActorPath can be extended later to store network path, communication protocol, etc.
 public class ActorPath : CustomStringConvertible {
     
     public let asString : String
@@ -28,10 +32,8 @@ public class ActorPath : CustomStringConvertible {
     }
 }
 
-/**
-    'ActorRef' provides a reference to a given 'Actor', you should always talk
-    to actors though it's ActorRef.
-*/
+/// ActorRef is a reference to an Actor (ActorCell)
+/// Programmer typically will always talk to the actor throught this ref
 public class ActorRef: CustomStringConvertible {
     
     /**
@@ -40,74 +42,42 @@ public class ActorRef: CustomStringConvertible {
     public var description: String {
         return "<\(type(of:self)): \(path)>"
     }
-    
-    internal let context: ActorSystem
 
-    internal var supervisor: ActorRef?
+    /// ActorRef owns an ActorCell. So this is a strong optional type. And after the actorcell is stopped.
+    /// The actor will be cleaned
+    var actorCell: ActorCell?
 
-    internal var children = [String:ActorRef]()//Hashtable<String , ActorRef>()
-
-    let lock = NSLock() //A lock to protect children update
-    func sync<T>(_ closure: () -> T) -> T {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return closure()
-    }
-
-    /**
-         The Path to this ActorRef
-     */
+    /// ActorPath of this ActorRef
     public let path : ActorPath
 
-    /**
-        Reference to the actual actor.
-        This is optional because actual actor instance might crash (e.g. in the remote node)
-     */
-    internal var actorInstance: Actor?
 
-    /**
-        A backup of the actual actor instance, in case actor crashes.
-
-        TODO: refresh backup occasionally 
-    */
-    internal var initialization: () -> Actor
     
-    /**
-        Called by Actor.actorOf
-    */
-    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem, supervisor: ActorRef, initialization: @escaping () -> Actor) {
+    /// Called by ActorCell.actorOf
+    init(path : ActorPath) {
         self.path = path
-        self.actorInstance = actorInstance
-        self.context = context
-        self.supervisor = supervisor
-        self.initialization = initialization
     }
 
-    /**
-        Called by ActorSystem to create root supervisor.
-    */
-    internal init(path : ActorPath, actorInstance: Actor, context: ActorSystem) {
-        self.path = path
-        self.actorInstance = actorInstance
-        self.context = context
-        self.supervisor = nil
-        self.initialization = {Actor()}
-    }
-    
     /**
         This method is used to send a message to the underlying Actor.
      
         - parameter msg : The message to send to the Actor.
     */
-    public func tell (_ msg : Unmanaged<Actor.Message>) -> Void {
-        if let actor = self.actorInstance {
-            actor.tell(msg)
+    public func tell (_ msg : Actor.Message) -> Void {
+        if let actorCell = self.actorCell {
+            ///Here we should just put the msg into actorCell's queue
+            actorCell.tell(msg)
         } else {
             print("[WARNING] Fail to deliver message \(msg) to \(self)")
         }
     }
-    
+
+
     internal func stop(_ ref: ActorRef) {
-        actorInstance?.stop(ref)
+        if let actorCell = self.actorCell {
+            actorCell.stop() // the system message
+        } else {
+            //send error msg to system. log
+        }
+
     }
 }

@@ -33,8 +33,7 @@ infix operator ! : ActorMessageSendGroup
 
 @_transparent
 public func !(actorRef : ActorRef, msg : Actor.Message) -> Void {
-    let unmanaged = Unmanaged.passRetained(msg)
-    actorRef.tell(unmanaged)
+    actorRef.tell(msg)
 }
 
 public typealias Receive = (Actor.Message) throws -> (Void)
@@ -55,123 +54,32 @@ public typealias Receive = (Actor.Message) throws -> (Void)
     Which will be called when some other actor tries to ! (tell) you something
 */
 open class Actor {
+
+    unowned let context:ActorCell
+
+    // Short cut
+    public var this: ActorRef { return context.this }
+
+    public init(context:ActorCell) { self.context = context }
     
-    /**
-        Here we save all the actor states
-    */
+
+
+    /// The default function to do supervision work. 
+    /// User may override this function to implement other supervision strategy
+    open func supervisorStrategy(errorMsg: ErrorMessage) -> Void {
+        switch(errorMsg) {
+        default:
+            print("\(self.this) got \(errorMsg.error) from child \(errorMsg.sender!)")
+            print("[INFO] restarting \(errorMsg.sender!.path.asString)")
+            errorMsg.sender!.restart()
+        }
+    }
+
+
+    /// Used to do statemachine transaction
     final public let statesStack : Stack<(String,Receive)> = Stack()
-    
-    /**
-        Each actor has it's own mailbox to process Actor.Messages.
-    */
-    final internal var underlyingQueue: DispatchQueue! = nil
-    
-    /**
-        Reference to the ActorRef of the current actor
-    */
-    internal var _ref : ActorRef? = nil
 
-    private var dying = false
 
-    public var this: ActorRef {
-        if let ref = self._ref {
-            return ref
-        } else {
-            print("[ERROR] nil _ref, terminating system")
-            exit(1)
-        }
-    }
-
-    /// Stop the current actor.
-    public func stop() {
-        this ! Harakiri(sender:nil)
-    }
-
-    /// Stop the current actor's child actor with an actorRef.
-    public func stop(_ actorRef : ActorRef) -> Void {
-        let path = actorRef.path.asString
-        self.this.sync {
-            self.this.children.removeValue(forKey: path)
-            actorRef.actorInstance = nil
-        }
-    }
-    
-    /** 
-        Generate a random name for the new actor
-    */
-    public func actorOf(_ initialization: @escaping () -> Actor) -> ActorRef {
-        return actorOf(initialization, name: NSUUID().uuidString)
-    }
-
-    /**
-        Pass in a new actor instance, wrap it with ActorRef and return the
-        ActorRef
-    */
-    public func actorOf(_ initialization: @escaping () -> Actor, name : String) -> ActorRef {
-        let actorInstance = initialization()
-        //TODO: should we kill or throw an error when user wants to reuse address of actor?
-        let completePath = "\(self.this.path.asString)/\(name)"
-        let ref = ActorRef(
-            path:ActorPath(path:completePath), 
-            actorInstance: actorInstance, 
-            context: this.context,
-            supervisor: self.this,
-            initialization: initialization
-            )
-        actorInstance._ref = ref
-        actorInstance.underlyingQueue = this.context.assignQueue()
-        self.this.sync {  
-            self.this.children[completePath] = ref
-        }
-        //Now the actor is ready to use
-        actorInstance.preStart()
-        return ref
-    }
-
-    class func createSupervisorActor(name: String, context: ActorSystem) -> ActorRef {
-        let supervisorActor = Actor()
-        let ref = ActorRef(
-            path: ActorPath(path: "\(name)/user"), 
-            actorInstance: supervisorActor,
-            context: context
-            )
-        supervisorActor._ref = ref
-        supervisorActor.underlyingQueue = context.assignQueue()
-        return ref
-    }
-
-    public func selectChildActor(pathString: String) throws -> ActorRef {
-        guard pathString.hasPrefix(this.path.asString) else {
-            throw InternalError.noSuchChild(pathString: pathString)
-        }
-
-        if pathString == this.path.asString {
-            return this
-        } else {
-            let nextIdx = this.path.asString.characters.split(separator: "/").count
-            let nextPath: String = 
-                   "\(this.path.asString)/\(pathString.characters.split(separator: "/").map(String.init)[nextIdx])"
-            let next: ActorRef? = self.this.sync{ this.children[nextPath] }
-            if let nextNode = next {
-                return try nextNode.actorInstance!.selectChildActor(pathString: pathString)
-            } else {
-                throw InternalError.invalidActorPath(pathString: pathString)
-            }
-        }
-    }
-
-    public func selectActor(pathString: String) throws -> ActorRef {
-        return try this.context.selectActor(pathString: pathString)
-    }
-
-    // FIXME: a better way, do a thread safe copy and returns the copy
-    public func getChildrenActors() -> [ActorRef] {
-        var childrenRefs:[ActorRef] = []
-        self.this.sync { 
-            this.children.forEach { (_, v) in childrenRefs.append(v)}
-        }
-        return childrenRefs
-    }
     
     
     /**
@@ -244,71 +152,7 @@ open class Actor {
         }
     }
     
-    /**
-        This method handles all the system related messages, if the message is
-        not system related, then it calls the state at the head position of the
-        statesstack, if the stack is empty, then it calls the receive method
-    */
-    final public func systemReceive(_ msg : Unmanaged<Actor.Message>) -> Void {
-        let realMsg = msg.takeUnretainedValue() 
-        switch realMsg { 
-        case is ErrorMessage:
-            self.supervisorStrategy(errorMsg: realMsg as! ErrorMessage)
-        case is Harakiri, is PoisonPill:
-            self.dying = true
-            self.willStop() 
-            self.this.sync {  
-                if self.this.children.count == 0 && self.this.supervisor != nil {
-                    // sender must not be null because supervisor needs this 
-                    // to remove current actor from children dictionary
-                    self.this.supervisor! ! Terminated(sender: self.this)
-                } else {
-                    self.this.children.forEach {
-                        (_,actorRef) in actorRef ! Harakiri(sender:self.this) 
-                    }
-                }
-            }
-        case let t as Terminated: //Child notifies this actor that it is stopped 
-            // Remove child actor from the children dictionary.
-            // If current actor is also waiting to die, check the size of children 
-            // and die right away if all children are already dead.
-            stop(t.sender!)
-            if dying {
-                self.this.sync {
-                    if self.this.children.count == 0 {
-                        if let supervisor = self.this.supervisor {
-                            supervisor ! Terminated(sender: self.this)
-                        } else {
-                            // This is the root of supervision tree
-                            print("[INFO] ActorSystem \(self.this.context.name) termianted")
-                        }
-                    }
-                }
-            }
-        default: 
-            if let (name, state) : (String, Receive) = self.statesStack.head() { 
-                #if DEBUG 
-                print("Sending message to state\(name)") 
-                #endif 
-                do {
-                    try state(realMsg) 
-                } catch {
-                    if let supervisor = this.supervisor {
-                        supervisor ! ErrorMessage(error, sender: this)
-                    }
-                }
-            } else { 
-                do {
-                    try self.receive(realMsg)
-                } catch {                    
-                    if let supervisor = this.supervisor {
-                        supervisor ! ErrorMessage(error, sender: this)
-                    }
-                }
-            }
-        }
-    }
-    
+
     /**
         This method will be called when there's an incoming message, notice
         that if you push a state int the statesStack this method will not be
@@ -325,30 +169,7 @@ open class Actor {
         }
     }
 
-    /**
-        User specifies handling of errors using this method.
-        (learned from Akka)
-    */
-    open func supervisorStrategy(errorMsg: ErrorMessage) -> Void {
-        switch(errorMsg) {
-        default:
-            print("\(self.this) got \(errorMsg.error) from child \(errorMsg.sender!)")
-            print("[INFO] restarting \(errorMsg.sender!.path.asString)")
-            errorMsg.sender!.restart()
-        }
-    }
-    
-    /**
-        This method is used by the ActorSystem to communicate with the actors,
-        do not override.
-    */
-    final public func tell(_ msg : Unmanaged<Actor.Message>) -> Void {
-        underlyingQueue.async { () in
-            // let realMsg = msg.takeUnretainedValue() self.sender =
-            // realMsg.sender
-            self.systemReceive(msg) 
-        } 
-    }
+
     
     /**
         preStart() is called when an Actor is ready to start. Actors are automatically started
@@ -364,14 +185,7 @@ open class Actor {
      */
     open func willStop() -> Void {   }
     
-    /**
-        Schedule Once is a timer that executes the code in block after seconds
-    */
-    final public func scheduleOnce(_ seconds: Int, block : @escaping (Void) -> Void) {
-        //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
-        underlyingQueue.asyncAfter(deadline: DispatchTime.now() + DispatchTimeInterval.seconds(seconds),
-                                   execute: block)
-    }
+
 
     /*
         Schedule Once is a timer that executes the code in block after seconds
@@ -415,13 +229,6 @@ open class Actor {
     //     task?(cancel: cancle)
     // }
 
-    /**
-        Default constructor used by the ActorSystem to create a new actor, you
-        should not call this directly, use actorOf in the ActorSystem to create a
-        new actor. During the actor object constructing process, the actor is not ready
-        to use. As a result, user cannot create sub-actors of this actor here.
-    */
-    public init() {   }
 
     deinit {
         #if DEBUG
