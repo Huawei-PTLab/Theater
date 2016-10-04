@@ -43,7 +43,7 @@ public class ActorCell : CustomStringConvertible {
         return "ActorCell[\(this.path.asString)]"
     }
 
-    /// A lock to protect the usage
+    /// A lock for this actorCell. Used to protect Children update
     let lock = NSLock() //A lock to protect children update
     func sync<T>(_ closure: () -> T) -> T {
         self.lock.lock()
@@ -103,6 +103,42 @@ public class ActorCell : CustomStringConvertible {
         this ! Actor.PoisonPill(sender:nil)
     }
 
+    /// From current actor
+    public func actorFor(_ pathSections:ArraySlice<String>) -> ActorRef? {
+        if pathSections.count == 0 { return nil }
+
+        let curPath = pathSections[0]
+        var curRef:ActorRef? = nil
+        if curPath == "." {
+            curRef = this
+        } else if curPath == ".." {
+            curRef = parent
+        } else {
+            curRef = sync { children[curPath] }
+        }
+
+        if curRef != nil && pathSections.count > 1 {
+            return curRef!.actorFor(pathSections.dropFirst())
+        } else {
+            return curRef
+        }
+    }
+
+    public func actorFor(_ path:String) -> ActorRef? {
+        var pathSecs = ArraySlice<String>(path.components(separatedBy: "/"))
+        //at least one "" in the pathSecs
+        if pathSecs.last! == "" { pathSecs = pathSecs.dropLast() }
+
+        if pathSecs.count == 0 { return nil } //"" input case
+
+        if pathSecs.first == "" { //"\something" case
+            //Search the system
+            return system.actorFor(pathSecs.dropFirst())
+        } else { //"aPath\bPath"
+            //search relative path
+            return self.actorFor(pathSecs)
+        }
+    }
 
     private func receiveActorSelect(msg: Actor.ActorSelect) {
         let qPath = msg.path
@@ -117,7 +153,8 @@ public class ActorCell : CustomStringConvertible {
             let rPathSecs : [String] = rPath.components(separatedBy: "/")
             if rPathSecs.count > 0 {
                 let childPath = path + "/" + rPathSecs[0]
-                if let childRef = children[childPath] {
+                let childRef = sync { children[childPath] }
+                if let childRef = childRef {
                     if rPathSecs.count == 1 {
                         retRef = childRef
                     } else {

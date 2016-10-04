@@ -1,6 +1,8 @@
 # Introduction
 
-This document describes some design decisions we made in writing swift version Theater library. The design and implementation is totally different to the original Theter library from Dario A Lencina-Talarico.
+This document describes some design decisions we made in writing swift version
+Theater library. The design and implementation is totally different to the
+original Theter library from Dario A Lencina-Talarico.
 
 
 # Basic Actor Classes
@@ -10,20 +12,59 @@ We follows AKKA's way to implement the actor with three parts
 * ActorCell: The context of an Actor. Library provided. Never fails.
 * ActorRef: A reference to a ActorCell. It can be passed around, and used by others to send message to the ActorCell.
 
+Besides them, there is a speical class ActorSystem.
+
 ## Actor
-Actor only contains user's code logic to handle a message. The main routine is `receive(msg:Message)`, or it can start a FSM and process message in a FSM way.
+Actor only contains user's code logic to handle a message. The main routine is
+`receive(msg:Message)`, or it can start a FSM (Finite State machine) and process 
+message in a state transition way. 
 
 ## ActorCell
-It contains all the context information for an actor. When an actor fails, all the context information should be still there. Then the context information can be used to restart the actor.
+It contains all the context information for an actor. Or you can combine an
+instance of an dfdf When an actor fails, all the context information should be
+still there. Then the context information can be used to restart the actor.
+The actorCell will only be cleaned when the stop request is received.
 
-Context information includes the current location, children (the current actor supervise), parent (the current actor's supervisor). The message queue (so no message will get lost even an actor is fails). The actor's FSM's state stack. Although the stack is in the context, the stack will be cleaned when an actor restarts. 
+Context information includes the current location, children (the current actor
+supervises), parent (the current actor's supervisor). The message queue (so no 
+message will get lost even an actor instance fails). Note, the actor's FSM's
+state is managed in the actor instance. So when an actor fails, the states will
+get lost.
 
 ## ActorRef
 
-Contains the location information, and reference to the ActorCell.
+It is a reference to an actorCell. Other actors can use it to send message to
+the target actor. It contains the location information, and the reference to the 
+ActorCell.
+
+## ActorSystem
+
+ActorSystem is a special container to contain all the actors. ActorSystem could
+extend ActorCell since they both have many similarities. However, due to some
+Swift implementation issue, it's hard to extend it. For example, these code 
+does not compile in Swift3.
+
+    public class ActorCell  { 
+      unowned let system : ActorSystem
+
+      public init(system:ActorSystem) {
+        self.system = system
+      }
+    } 
+
+    public class ActorSystem : ActorCell  {
+      var name:String
+
+      public init() {
+        i = "dfdf"
+        super.init(system:self)
+      }
+    }
 
 ## Life Cycles
+
 ### Creation
+
 Actor system (one actor cell) uses `actorOf()` to create an actor.
 * Create another cell, and add it into its children
 * Create an actorRef to the cell
@@ -32,7 +73,8 @@ Actor system (one actor cell) uses `actorOf()` to create an actor.
 
 ## Connection relationships
 
-Because Swift's RC mechanism, we should carefully design the reference relationships to prevent refernece cycle.
+Because Swift's RC mechanism, we should carefully design the reference 
+relationships to prevent reference cycle.
 
 ```
 Actor -> .context/unowned  -> ActorCell 
@@ -51,18 +93,23 @@ In:  parent ActorCell context's children field, strong
 In:  Actor: unowned
 In:  ActoreRef: weak. may not contain value
 
-Out: Actor .actor: optional Strong 
-Out: ActorRef .this: unowned
-Out: Children to ActorCell: Strong
+Out: var actor:Actor? ///Set later, and could be changed. The own link
+Out: unowned let this:ActorRef ///Must be set,, and prevent cycle
+Out: children:[String:ActorRef] ///Owener of child Strong map
+Out: unowned let supervisor:ActorCell?  ///
 
 Actor:
 In: context's .actor: Strong
-Out: ActorCell .context: unowned
+
+Out: unowned let context:ActorRef ///Must set, and prevent cycle
+Out: unowned let this:ActorRef  ///Must be set, and prevent cycle
 
 ActorRef:
 In: No default Strong In. Who uses it who owns it
-    ActorCell context .this. : unowned
-Out: .context: weak. 
+    ActorCell context .this. : owned. Prevent clean
+
+
+Out: .context: weak optional. An actorcell may dead  
 ```        
 
 ## Creation Sequence

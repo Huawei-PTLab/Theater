@@ -57,6 +57,14 @@ public class ActorRef: CustomStringConvertible {
         self.path = path
     }
 
+    public func actorFor(_ pathSections:ArraySlice<String>) -> ActorRef? {
+        return actorCell?.actorFor(pathSections)
+    }
+
+    public func actorFor(_ path:String) -> ActorRef? {
+        return actorCell?.actorFor(path)
+    }
+
     /**
         This method is used to send a message to the underlying Actor.
      

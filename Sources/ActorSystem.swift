@@ -30,7 +30,6 @@ public class ActorSystem : CustomStringConvertible {
     private let rootRef:ActorRef
 
 
-
     /// Create the actor system
     /// - parameter name: The name of the actor system
     /// - parameter dispatcher: The dispatcher used for the actor system. Default is DefaultDispatcher
@@ -59,6 +58,15 @@ public class ActorSystem : CustomStringConvertible {
     public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
                         name: String) -> ActorRef {
         return rootRef.actorCell!.actorOf(actorConstructor, name:name)
+    }
+
+
+    public func actorFor(_ pathSections:ArraySlice<String>) -> ActorRef? {
+        return rootRef.actorFor(pathSections)
+    }
+
+    public func actorFor(_ path:String) -> ActorRef? {
+        return rootRef.actorFor(path)
     }
 
     public func selectActor(pathString : String, by requestor:ActorRef,
