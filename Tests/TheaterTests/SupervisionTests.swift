@@ -22,7 +22,7 @@ class SupervisionTests: XCTestCase {
 
     func testUnexpectedMessageError() {
         let system = ActorSystem(name: "system")
-        let a = system.actorOf({DefaultSupervisor()}, name: "DefaultSupervisor")
+        let a = system.actorOf(DefaultSupervisor.init, name: "DefaultSupervisor")
         // If test succeeds, error should be thrown and caught by "system/user"
         a ! Foo(sender: nil)
         sleep(1)
@@ -30,17 +30,17 @@ class SupervisionTests: XCTestCase {
 
     func testRestart() {
         let system = ActorSystem(name: "testRestart")
-        let parent = system.actorOf({CounterActorSupervisor()}, name: "supervisor")
+        let parent = system.actorOf(CounterActorSupervisor.init, name: "supervisor")
         parent ! CreateChild(sender: nil)
         sleep(1) // Wait the child to be created, otherwise the slectActor may get nothing
-        let counter = try! system.selectActor(pathString:"testRestart/user/supervisor/counter")
+        let counter = system.actorFor("/user/supervisor/counter")
         for i in 1...10 {
             if i % 3 == 0 {
                 // Once every 3 messages, send a Foo to trigger restart.
                 print("sending message to reset counter")
-                counter ! Foo(sender: nil)
+                counter! ! Foo(sender: nil)
             } else {
-                counter ! Increment(sender: nil)
+                counter! ! Increment(sender: nil)
             }
             // we need to sleep between messages because supervisor needs time to react to the 
             // error messages from child
@@ -51,19 +51,19 @@ class SupervisionTests: XCTestCase {
 
     func testEscalate() {
         let system = ActorSystem(name: "testRestart")
-        let parent = system.actorOf({CounterActorSupervisor()}, name: "supervisor")
+        let parent = system.actorOf(CounterActorSupervisor.init, name: "supervisor")
         parent ! CreateChild(sender: nil)
         sleep(1) // Wait the child to be created, otherwise the slectActor may get nothing
-        let counter = try! system.selectActor(pathString:"testRestart/user/supervisor/counter")
+        let counter = system.actorFor("/user/supervisor/counter")
         for i in 1...10 {
             if i % 3 == 0 {
                 print("triggering small error")
-                counter ! CommonError(sender: nil)
+                counter! ! CommonError(sender: nil)
             } else if i == 6  {
                 print("triggering fatal error")
-                counter ! FatalError(sender: nil)
+                counter! ! FatalError(sender: nil)
             } else {
-                counter ! Increment(sender: nil)
+                counter! ! Increment(sender: nil)
             }
             // we need to sleep between messages because supervisor needs time to react to the 
             // error messages from child
@@ -99,7 +99,7 @@ class CounterActorSupervisor: Actor {
         case TestError.CommonError:
             errorMsg.sender!.restart()
         case TestError.FatalError:
-            escalate()
+            context.escalate()
         default:
             errorMsg.sender!.restart()
         }
@@ -107,7 +107,7 @@ class CounterActorSupervisor: Actor {
     override func receive(_ msg: Actor.Message) throws -> Void {
         switch(msg) {
         case is CreateChild:
-            let _ = actorOf({CounterActor(start: 0)}, name: "counter")
+            let _ = context.actorOf({ (context:ActorCell) in CounterActor(context:context, start: 0)}, name: "counter")
         default:
             throw TheaterError.unexpectedMessage(msg: msg)
         }
@@ -116,8 +116,9 @@ class CounterActorSupervisor: Actor {
 
 class CounterActor: Actor {
     var counter: Int
-    init(start: Int) {
+    init(context:ActorCell, start: Int) {
         counter = start
+        super.init(context:context)
     }
     override func receive(_ msg: Actor.Message) throws -> Void {
         switch(msg) {

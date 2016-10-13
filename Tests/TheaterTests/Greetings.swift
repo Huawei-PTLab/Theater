@@ -67,7 +67,7 @@ class GreetingActor: Actor {
 
 class GreetingActorController {
     lazy var system : ActorSystem = ActorSystem(name : "GreetingActorController")
-    lazy var greetingActor : ActorRef = self.system.actorOf({GreetingActor()}, name:"GreetingActor")
+    lazy var greetingActor : ActorRef = self.system.actorOf(GreetingActor.init, name:"GreetingActor")
 
     func kickoff(){
         greetingActor ! Greeting(sender: nil)

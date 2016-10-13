@@ -18,20 +18,20 @@ class SelectActorTests: XCTestCase {
             ("testFlat", testFlat),
             ("testNested", testNested),
             ("testFlatAndNested", testFlatAndNested),
-            ("testSelectActorInActor", testSelectActorInActor),
+            ("testActorForInActor", testActorForInActor),
         ]
     }
 
     func testFlat() {
         let system = ActorSystem(name: "system")
-        let _ = system.actorOf({Ping()}, name: "Ping")
-        let _ = system.actorOf({Pong()}, name: "Pong")
+        let _ = system.actorOf(Ping.init, name: "Ping")
+        let _ = system.actorOf(Pong.init, name: "Pong")
 
-        let ping = try! system.selectActor(pathString: "system/user/Ping")
-        let pong = try! system.selectActor(pathString: "system/user/Pong")
+        let ping =  system.actorFor("/user/Ping")
+        let pong =  system.actorFor("/user/Pong")
         XCTAssertNotNil(ping)
         XCTAssertNotNil(pong)
-        pong ! Ball(sender: ping)
+        pong! ! Ball(sender: ping)
         sleep(5)
         system.stop()
         sleep(2)
@@ -39,17 +39,17 @@ class SelectActorTests: XCTestCase {
 
     func testNested() {
         let system = ActorSystem(name: "system")
-        let foo = system.actorOf({PingParent()}, name: "Foo")
-        let bar = system.actorOf({PongParent()}, name: "Bar")
+        let foo = system.actorOf(PingParent.init, name: "Foo")
+        let bar = system.actorOf(PongParent.init, name: "Bar")
         foo ! Create(sender: nil)
         bar ! Create(sender: nil)
         sleep(1) //Wait until the two actors are created
 
-        let ping = try! system.selectActor(pathString: "system/user/Foo/Ping")
-        let pong = try! system.selectActor(pathString: "system/user/Bar/Pong")
+        let ping = system.actorFor("/user/Foo/Ping")
+        let pong = system.actorFor("/user/Bar/Pong")
         XCTAssertNotNil(ping)
         XCTAssertNotNil(pong)
-        pong ! Ball(sender: ping)
+        pong! ! Ball(sender: ping)
         sleep(5)
         system.stop()
         sleep(1)
@@ -60,26 +60,26 @@ class SelectActorTests: XCTestCase {
         let foo = system.actorOf(PingParent.init, name: "Foo")
         foo ! Create(sender: nil)
         sleep(1) //Wait until foo is created
-        let _ = system.actorOf({Pong()}, name: "Pong")
+        let _ = system.actorOf(Pong.init, name: "Pong")
 
-        let ping = try! system.selectActor(pathString: "system/user/Foo/Ping")
-        let pong = try! system.selectActor(pathString: "system/user/Pong")
+        let ping = system.actorFor("/user/Foo/Ping")
+        let pong = system.actorFor("/user/Pong")
         XCTAssertNotNil(ping)
         XCTAssertNotNil(pong)
-        pong ! Ball(sender: ping)
+        pong! ! Ball(sender: ping)
         sleep(5)
         system.stop()
         sleep(2)
     }
 
-    func testSelectActorInActor() {
+    func testActorForInActor() {
         let system = ActorSystem(name: "system")
-        let _ = system.actorOf({HeadlessPing()}, name: "Ping")
-        let _ = system.actorOf({HeadlessPong()}, name: "Pong")
+        let _ = system.actorOf(HeadlessPing.init, name: "Ping")
+        let _ = system.actorOf(HeadlessPong.init, name: "Pong")
         sleep(1) //Wati until actor is created
-        let ping = try! system.selectActor(pathString: "system/user/Ping")
+        let ping = system.actorFor("/user/Ping")
         XCTAssertNotNil(ping)
-        ping ! Ball(sender: nil)
+        ping! ! Ball(sender: nil)
         sleep(5)
         system.stop()
         sleep(2)
@@ -92,7 +92,7 @@ class PingParent: Actor {
     override func receive(_ msg: Actor.Message) {
         switch(msg) {
         case is Create:
-            let _ = actorOf({Ping()}, name: "Ping")
+            let _ = context.actorOf(Ping.init, name: "Ping")
         default:
             print("unexpected message")
         }
@@ -103,7 +103,7 @@ class PongParent: Actor {
     override func receive(_ msg: Actor.Message) {
         switch(msg) {
         case is Create:
-            let _  = actorOf({Pong()}, name: "Pong")
+            let _  = context.actorOf(Pong.init, name: "Pong")
         default:
             print("unexpected message")
         }
@@ -119,7 +119,7 @@ class HeadlessPing : Actor {
                 counter += 1
                 print("ping counter: \(counter)")
                 Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
-                let selected = try? selectActor(pathString: "system/user/Pong")
+                let selected = context.actorFor("/user/Pong")
                 if let pong = selected {
                     pong ! Ball(sender: nil)
                 }
@@ -138,7 +138,7 @@ class HeadlessPong : Actor {
             counter += 1
             print("pong counter: \(counter)")
             Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
-            let selected = try? selectActor(pathString: "system/user/Ping")
+            let selected =  context.actorFor("/user/Ping")
             if let ping = selected {
                 ping ! Ball(sender: nil)
             }

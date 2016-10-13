@@ -76,6 +76,15 @@ Actor system (one actor cell) uses `actorOf()` to create an actor.
 Because Swift's RC mechanism, we should carefully design the reference 
 relationships to prevent reference cycle.
 
+The ownership relationship.
+
+* Without any external references.
+  * root/ActorCell's children owns Child's actorRef
+  * Child actorRef owns the actor
+  * If the the actorRef is shared to someone. 
+
+
+
 ```
 Actor -> .context/unowned  -> ActorCell 
       <-  .actor/optional Strong <-
@@ -89,9 +98,8 @@ ActorCell -> .this/unowned -> ActorRef
            
 In summary
 ActorCell:
-In:  parent ActorCell context's children field, strong
 In:  Actor: unowned
-In:  ActoreRef: weak. may not contain value
+In:  ActoreRef: weak. may not contain value 
 
 Out: var actor:Actor? ///Set later, and could be changed. The own link
 Out: unowned let this:ActorRef ///Must be set,, and prevent cycle
@@ -106,6 +114,7 @@ Out: unowned let this:ActorRef  ///Must be set, and prevent cycle
 
 ActorRef:
 In: No default Strong In. Who uses it who owns it
+
     ActorCell context .this. : owned. Prevent clean
 
 

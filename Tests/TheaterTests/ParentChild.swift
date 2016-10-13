@@ -30,9 +30,11 @@ class Parent : Actor {
 
     var son: ActorRef!
     var daughter: ActorRef!
-    override func preStart() {
-        son = actorOf(Child.init, name:"son")
-        daughter = actorOf(Child.init, name:"daughter")
+
+    override init(context:ActorCell) {
+        son = context.actorOf(Child.init, name:"son")
+        daughter = context.actorOf(Child.init, name:"daughter")
+        super.init(context:context)
     }
     
     override func receive(_ msg: Actor.Message) throws {

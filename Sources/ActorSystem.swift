@@ -10,10 +10,10 @@ import Foundation
 import Dispatch
 
 
-/**
-    All actors live in 'ActorSystem'. You might have more than 1 actor system.
-    ActorSystem is a special actorcell, with some special error handling mechanism
-*/
+
+/// All actors live in 'ActorSystem'. You might have more than 1 actor system.
+/// ActorSystem contains a special actorCell and an actor instrance with some
+/// special error handling mechanism
 public class ActorSystem : CustomStringConvertible {
 
     /// The name of this ActorSystem
@@ -24,32 +24,32 @@ public class ActorSystem : CustomStringConvertible {
     }
 
     /// The dispatcher used for the whole system
-    private var dispatcher: Dispatcher = DefaultDispatcher()
+    private var dispatcher: Dispatcher
 
     /// The rootRef of this system
-    private let rootRef:ActorRef
+    private let userRef:ActorRef
 
 
     /// Create the actor system
     /// - parameter name: The name of the actor system
-    /// - parameter dispatcher: The dispatcher used for the actor system. Default is DefaultDispatcher
+    /// - parameter dispatcher: The dispatcher used for the actor system. 
+    ///   Default is DefaultDispatcher
     public init(name : String, dispatcher: Dispatcher = DefaultDispatcher()) {
-
 
         self.name = name
         self.dispatcher = dispatcher
 
-        rootRef = ActorRef(path: ActorPath(path:"/user"))
-        let rootContext = ActorCell(system:self,
+        userRef = ActorRef(path: ActorPath(path:"/user"))
+        let userContext = ActorCell(system:self,
                                     parent:nil,
                                     actorConstructor: Actor.init,
-                                    actorRef:rootRef)
-        rootRef.actorCell = rootContext
-        rootContext.actor = Actor(context:rootContext)
-
-
+                                    actorRef:userRef)
+        userRef.actorCell = userContext
+        // Later we can create an actor with special error handling mechanism
+        userContext.actor = Actor(context:userContext)
     }
 
+    /// Used for child actor cell to get an exeuction queue
     internal func assignQueue() -> DispatchQueue {
         return dispatcher.assignQueue()
     }
@@ -57,30 +57,47 @@ public class ActorSystem : CustomStringConvertible {
 
     public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
                         name: String) -> ActorRef {
-        return rootRef.actorCell!.actorOf(actorConstructor, name:name)
+        return userRef.actorCell!.actorOf(actorConstructor, name:name)
     }
 
 
+    /// ActorSystem's actorFor expects the sections with ["user", "aName"]
+    /// or ["system", "aName" ], or ["deadLeater"]
     public func actorFor(_ pathSections:ArraySlice<String>) -> ActorRef? {
-        return rootRef.actorFor(pathSections)
+
+        if pathSections.count == 0 { return nil }
+        if pathSections.first! == "user" {
+            print("now check user")
+            return userRef.actorFor(pathSections.dropFirst())
+        } else {
+            return nil
+        }
     }
 
+    /// Actorsystem's actorFor expects the path is "/user/path", or "user/path"
     public func actorFor(_ path:String) -> ActorRef? {
-        return rootRef.actorFor(path)
+        var pathSecs = ArraySlice<String>(path.components(separatedBy: "/"))
+        //at least one "" in the pathSecs
+        if pathSecs.last! == "" { pathSecs = pathSecs.dropLast() }
+        if pathSecs.count == 0 { return nil } //Empty "" input case
+        if pathSecs.first! == "" { //Absolute path "/something" case
+            pathSecs = pathSecs.dropFirst()
+        }
+        return actorFor(pathSecs)
     }
 
     public func selectActor(pathString : String, by requestor:ActorRef,
                             _ action:@escaping (ActorRef?)->Void) {
-        rootRef ! Actor.ActorSelect(path:pathString, sender:requestor, action)
+        userRef ! Actor.ActorSelect(path:pathString, sender:requestor, action)
     }
 
     public func stop() {
-        rootRef.actorCell!.stop()
+        userRef.actorCell!.stop()
     }
     
     deinit {
         #if DEBUG
-            print("killing ActorSystem: \(name)")
+            print("ActorSystem: \(name)")
         #endif
     }
 }

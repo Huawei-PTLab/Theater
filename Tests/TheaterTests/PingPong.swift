@@ -21,8 +21,9 @@ class Ping : Actor {
         switch(msg) {
             case is Ball:
                 counter += 1
-                print("ping counter: \(counter)")
-                Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
+                print("Ping counter: \(counter)")
+                //Never sleep in an actor, this is for demo!
+                Thread.sleep(forTimeInterval: 1)
                 msg.sender! ! Ball(sender: this)
             
             default:
@@ -38,8 +39,9 @@ class Pong : Actor {
         switch(msg) {
         case is Ball:
             counter += 1
-            print("pong counter: \(counter)")
-            Thread.sleep(forTimeInterval: 1) //Never sleep in an actor, this is for demo!
+            print("Pong counter: \(counter)")
+            //Never sleep in an actor, this is for demo!
+            Thread.sleep(forTimeInterval: 1)
             msg.sender! ! Ball(sender: this)
             
         default:
@@ -55,8 +57,8 @@ public class PingPong {
     let pong : ActorRef
     
     public init() {
-        self.ping = system.actorOf({Ping()}, name: "ping")
-        self.pong = system.actorOf({Pong()}, name: "pong")
+        self.ping = system.actorOf(Ping.init, name: "ping")
+        self.pong = system.actorOf(Pong.init, name: "pong")
         kickOffGame()
     }
     

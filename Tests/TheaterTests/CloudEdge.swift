@@ -10,7 +10,7 @@ import Theater
 import Foundation
 
 let systemName = "CloudEdgeUSN"
-let userName = "user"
+let userName = "huser"
 let serverName = "Server"
 let monitorName = "Monitor"
 
@@ -89,9 +89,10 @@ class Client: Actor {
     static let serverPath = "\(systemName)/\(userName)/\(serverName)"
     static let monitorPath = "\(systemName)/\(userName)/\(monitorName)"
 
-    init(server: ActorRef, monitor: ActorRef) {
+    init(context:ActorCell, server: ActorRef, monitor: ActorRef) {
         self.server = server
         self.monitor = monitor
+        super.init(context:context)
     }
 
     let server: ActorRef
@@ -134,7 +135,7 @@ class Client: Actor {
                            print("\(Client.self).\(#function): sent \(record) to \(self.monitor)")
                            print("\(Client.self).\(#function): sent \(notification) to \(self.server)")
                        #endif
-                       self.stop()
+                       self.context.stop()
                    default:
                        break
                    }
@@ -153,7 +154,7 @@ class Server: Actor {
                 #endif
             } else {
                 index += 1
-                let container = actorOf(Container.init, name: String(format: "Container%d", index))
+                let container = context.actorOf(Container.init, name: String(format: "Container%d", index))
                 activeContainer[index] = container
                 #if DEBUG
                     print("\(Server.self).\(#function): create new container \(container)")
@@ -260,7 +261,9 @@ func simpleCase(count:Int) {
     let server = system.actorOf(Server.init, name: serverName)
     let monitor = system.actorOf(Monitor.init, name: monitorName)
     for i in 0..<count {
-        let client = system.actorOf({Client(server:server, monitor:monitor)}, name: "Client\(i)")
+        let client = system.actorOf( {(context:ActorCell) in
+                     Client(context:context, server:server, monitor:monitor)},
+                                    name: "Client\(i)")
         let timestamp = timeval(tv_sec: 0, tv_usec:0)
         client ! Request(client: i, server: 0, timestamp: timestamp)
         usleep(1000)

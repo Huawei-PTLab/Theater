@@ -55,7 +55,7 @@ public typealias Receive = (Actor.Message) throws -> (Void)
 */
 open class Actor {
 
-    unowned let context:ActorCell
+    public unowned let context:ActorCell
 
     // Short cut
     public var this: ActorRef { return context.this }

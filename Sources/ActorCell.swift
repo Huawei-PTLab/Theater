@@ -10,34 +10,45 @@
 import Foundation
 
 
-///
-///
+/// ActorCell is the container of an Actor instance. The actor cell and instance
+/// together perform as one actor, receiving messages, processing it and sending
+/// messages to other actors.
 public class ActorCell : CustomStringConvertible {
 
     /// The current actor's parent. Actor system's parent is nil
-    weak var parent : ActorRef? /// `Only actor system's parent is nil
+    weak var parent : ActorRef? /// Only actor system's cell's parent is nil
+
     /// A quick path to access the current ActorSystem
     unowned let system : ActorSystem
+
     /// To the ActorRef of this actor. Unowned due to not want to cause cycle
     unowned let this: ActorRef
+
     /// Points to the current actor instance. ActorCell is the owner
     /// It must has a value during the whole life cycle. So use Actor!
+    /// But when an ActorCell is created, the actor instrance has not been
+    /// assigned. So it can not use Actor type.
     var actor: Actor!
+
     /// Used to restart the actor instrance
     var actorConstructor: (ActorCell)->Actor
-    /// The current actor's children. Key: fullPath; Value: child ActorRef
-    /// Note only this actor cell can access (read/write) it. No lock required
+
+    /// The current actor's children. Key: shortName; Value: child ActorRef
+    /// Multiple threads may access it, use the lock to protect it.
     var children = [String:ActorRef]() //Hashtable<String , ActorRef>()
 
     /// The following fields are used to run the actor
+
     /// The mailbox and the exectuor
     let underlyingQueue:DispatchQueue
+
     /// Flag to indicate the actor has started the termination process
     private var dying = false
+
     /// askResult is used to handle AskMessage. The asked Actor should store a
     /// result here, and the systemReceive will wrap it as an AnswerMessage
     /// If the result is not set (nil), a nil response still be sent back
-    private var askResult:Any? = false
+    private var askResult:Any? = nil
 
     public var description: String {
         return "ActorCell[\(this.path.asString)]"
@@ -73,6 +84,12 @@ public class ActorCell : CustomStringConvertible {
     /// Create a new child actor in this context
     public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
                         name: String) -> ActorRef {
+        var name = name
+        if name == "" || name.contains("/") {
+            name = NSUUID().uuidString
+            print("[WARNING] Wrong actor name. Use generated UUID:\(name)")
+        }
+
         // The steps to create an actor: 1. ActorRef; 2. ActorCell; 3. Actor
 
         // 1.The actorRef requires a complete path
@@ -82,7 +99,7 @@ public class ActorCell : CustomStringConvertible {
             children[name] = childRef // Add it to current actorCell's children
         }
 
-        // 2.
+        // 2. Create the child actor's actor cell
         let childContext = ActorCell(system:self.system,
                                      parent:self.this,
                                      actorConstructor: actorConstructor,
@@ -98,16 +115,19 @@ public class ActorCell : CustomStringConvertible {
         return childRef
     }
 
-    /// Used to stop this system by sending the actor a PoisonPill
+    /// Used to stop this actor (the cell and the instance) by sending the actor
+    /// a PoisonPill
     public func stop() {
         this ! Actor.PoisonPill(sender:nil)
     }
 
-    /// From current actor
+    /// Look for an actor from the current context
+    /// - parameter pathSections: sections of strings to represent the path
     public func actorFor(_ pathSections:ArraySlice<String>) -> ActorRef? {
+
         if pathSections.count == 0 { return nil }
 
-        let curPath = pathSections[0]
+        let curPath = pathSections.first!
         var curRef:ActorRef? = nil
         if curPath == "." {
             curRef = this
@@ -124,22 +144,27 @@ public class ActorCell : CustomStringConvertible {
         }
     }
 
+    /// Look for an actor with the input path string
+    /// The path string could be absolute path, starting with "/", or relative
+    /// path. "." and ".." can be used in the path
+    /// - parameter path: The path to the actor
     public func actorFor(_ path:String) -> ActorRef? {
         var pathSecs = ArraySlice<String>(path.components(separatedBy: "/"))
         //at least one "" in the pathSecs
         if pathSecs.last! == "" { pathSecs = pathSecs.dropLast() }
 
-        if pathSecs.count == 0 { return nil } //"" input case
+        if pathSecs.count == 0 { return nil } //Empty "" input case
 
-        if pathSecs.first == "" { //"\something" case
-            //Search the system
+        if pathSecs.first! == "" { //Absolute path "/something" case
+            //Search from the system root
             return system.actorFor(pathSecs.dropFirst())
-        } else { //"aPath\bPath"
+        } else { //"aPath/bPath"
             //search relative path
             return self.actorFor(pathSecs)
         }
     }
 
+    /// TBD, not fully support the asynchronous actorSelect behavior
     private func receiveActorSelect(msg: Actor.ActorSelect) {
         let qPath = msg.path
         let path = this.path.asString
@@ -152,8 +177,8 @@ public class ActorCell : CustomStringConvertible {
             //split it
             let rPathSecs : [String] = rPath.components(separatedBy: "/")
             if rPathSecs.count > 0 {
-                let childPath = path + "/" + rPathSecs[0]
-                let childRef = sync { children[childPath] }
+                let childName = rPathSecs.first!
+                let childRef = sync { children[childName] }
                 if let childRef = childRef {
                     if rPathSecs.count == 1 {
                         retRef = childRef
@@ -173,7 +198,7 @@ public class ActorCell : CustomStringConvertible {
 
     }
 
-    /// selectActor will take a path string, like "\user\ping" to look for a
+    /// selectActor will take a path string, like "/user/ping" to look for a
     /// real actorRef. The looking is an asynchronous operation, and when the
     /// result is returned, the input action (ActorRef?)->Void will be called
     /// in the current actor context.
@@ -184,7 +209,7 @@ public class ActorCell : CustomStringConvertible {
         system.selectActor(pathString: path, by: this, action)
     }
 
-    // FIXME: a better way, do a thread safe copy and returns the copy
+    // Return the current children actors
     public func getChildrenActors() -> [ActorRef] {
         var childrenRefs:[ActorRef] = []
         self.sync {
@@ -193,10 +218,8 @@ public class ActorCell : CustomStringConvertible {
         return childrenRefs
     }
 
-    /**
-     This method is used by the ActorSystem to communicate with the actors,
-     do not override.
-     */
+
+    /// The basic method to send a message to an actor
     final public func tell(_ msg : Actor.Message) -> Void {
         underlyingQueue.async {
             self.systemReceive(msg)
@@ -204,45 +227,50 @@ public class ActorCell : CustomStringConvertible {
     }
 
 
-    /**
-     This method handles all the system related messages, if the message is
-     not system related, then it calls the state at the head position of the
-     statesstack, if the stack is empty, then it calls the receive method
-     */
-    final public func systemReceive(_ message : Actor.Message) -> Void {
+    /// systemReceive is the entry point to handles all kinds of messages.
+    /// If the message is system related, the message will be processed here.
+    /// If the message is user actor related, it will call the actor instance
+    /// to process it either by actor instrance's receive() or by the state
+    /// machine of the actor instance
+    ///
+    final private func systemReceive(_ message : Actor.Message) -> Void {
 
         switch message {
         case let errorMsg as Actor.ErrorMessage:
             /// Even actor is dying, still need to handle error message.
-            actor!.supervisorStrategy(errorMsg: errorMsg)
+            actor.supervisorStrategy(errorMsg: errorMsg)
         case is Actor.PoisonPill:
             guard (self.dying == false) else {
                 print("[WARNING]:\(self) receives double poison pills.")
                 return
             }
             self.dying = true
-            actor!.willStop() /// At this point,  actor is still valid
+            actor.willStop() /// At this point,  actor is still valid
             sync {
                 if self.children.count == 0 && self.parent != nil {
                     // sender must not be null because the parent needs this
                     // to remove current actor from children dictionary
                     self.parent! ! Actor.Terminated(sender: self.this)
                 } else {
-                    self.children.forEach {
-                        (_,actorRef) in actorRef ! Actor.PoisonPill(sender:self.this)
+                    self.children.forEach { (_,actorRef) in
+                        actorRef ! Actor.PoisonPill(sender:self.this)
                     }
                 }
             }
-        case let t as Actor.Terminated: //Child notifies this actor that it is stopped
+        case let t as Actor.Terminated: //Child notifies parent that it stopped
             // Remove child actor from the children dictionary.
-            // If current actor is also waiting to die, check the size of children
-            // and die right away if all children are already dead.
-            let path = t.sender!.path.asString
+            // If current actor is also waiting to die, check the size of
+            // children and die right away if all children are already dead.
+            let childName = t.sender!.shortName
             self.sync {
                 //Remove two links
                 //Need double check thek path's value is the same as the sender
                 //It's possible the key is bound to another path
-                self.children.removeValue(forKey: path)
+                self.children.removeValue(forKey: childName)
+                //This is because the actorRef may be still hold by someone else
+                //Then that guy cannot send message to the actor anymore
+
+                print("[Debug] clean: \(t.sender!) 's actorcell at \(this)")
                 t.sender!.actorCell = nil
 
                 if dying {
@@ -271,10 +299,11 @@ public class ActorCell : CustomStringConvertible {
             receiveActorSelect(msg:actorSelectMsg)
         default:
             guard (self.dying == false) else {
+                /// Better way is to send it to deadleader
                 print("[WARNING]:\(self) is dying. Drop non system messages")
                 return
             }
-            if let (name, state) : (String, Receive) = actor!.statesStack.head() {
+            if let (name, state): (String, Receive) = actor.statesStack.head() {
                 #if DEBUG
                     print("Sending message to state\(name)")
                 #endif
@@ -287,7 +316,7 @@ public class ActorCell : CustomStringConvertible {
                 }
             } else {
                 do {
-                    try actor!.receive(message)
+                    try actor.receive(message)
                 } catch {
                     if let parent = self.parent {
                         parent ! Actor.ErrorMessage(error, sender: this)
