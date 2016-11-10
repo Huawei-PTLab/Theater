@@ -15,7 +15,7 @@ import Glibc
 #endif
 
 
-
+/// Wrapper function for both Linux and Mac
 func randomInt()->Int {
     #if os(Linux)
     return random()
@@ -24,14 +24,13 @@ func randomInt()->Int {
     #endif
 }
 
+/// A Dispatcher has the capability to return a dispatch queue as mailbox
 public protocol Dispatcher {
     func assignQueue() -> DispatchQueue
     func assignQueue(name: String) -> DispatchQueue
 }
 
-/**
-    Assign a new dispatch_queue every time
-*/
+/// Assign a new dispatch_queue every time
 public class DefaultDispatcher: Dispatcher {
     public func assignQueue() -> DispatchQueue {
         return DispatchQueue(label: "")
@@ -42,13 +41,11 @@ public class DefaultDispatcher: Dispatcher {
     }
 }
 
-/**
-    Share queues between actors
-*/
+
+/// A special dispathcer that share some queues among actors
 public class ShareDispatcher: Dispatcher {
-    /** 
-        Ensure thead-safe access to type properties
-    */
+
+    /// Lock for protect the queues
     let lock = NSLock()
     var queues = [DispatchQueue]()
     var randomQueue: DispatchQueue? = nil

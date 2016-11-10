@@ -7,20 +7,16 @@
 //
 
 import Dispatch
-/**
-    Extend Actor class to add some methods related to supervision
-*/
-extension ActorCell {
-    /**
-        Create a new actor instance and replace the old one.
-    */
-    final public func restart() {
 
+/// Extend Actor class to add some methods related to supervision
+extension ActorCell {
+
+    /// Create a new actor instance and replace the old one.
+    final public func restart() {
+        // TODO: implement the restart
     }
 
-    /**
-        Shutdown the whole ActorSystem, use when failure is too severe.
-    */
+    /// Shutdown the whole ActorSystem, use when failure is too severe.
     final public func escalate() {
 
     }

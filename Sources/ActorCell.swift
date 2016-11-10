@@ -11,8 +11,8 @@ import Foundation
 
 
 /// ActorCell is the container of an Actor instance. The actor cell and instance
-/// together perform as one actor, receiving messages, processing it and sending
-/// messages to other actors.
+/// together perform as one actor, receiving messages, processing them and
+/// sending messages to other actors.
 public class ActorCell : CustomStringConvertible {
 
     /// The current actor's parent. Actor system's parent is nil
@@ -270,7 +270,7 @@ public class ActorCell : CustomStringConvertible {
                 //This is because the actorRef may be still hold by someone else
                 //Then that guy cannot send message to the actor anymore
 
-                print("[Debug] clean: \(t.sender!) 's actorcell at \(this)")
+                //print("[Debug] clean: \(t.sender!) 's actorcell at \(this)")
                 t.sender!.actorCell = nil
 
                 if dying {

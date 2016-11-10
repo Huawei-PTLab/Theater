@@ -63,10 +63,25 @@ public class ActorRef: CustomStringConvertible {
         self.path = path
     }
 
+    /// Look for an actor in the current actor context
+    /// The input is an array of strings. For example, if there is an actor
+    /// "/user/Parent/Son". And if the actorFor() is called in "/user/Parent"
+    /// actor, and input is "[Son]", the "/user/Parent/Son" will be returned.
+    /// - Parameter pathSections: ArraySlice of String to express each section.
+    /// - Returns: The actor ref corresponding to the path or nil if not found
     public func actorFor(_ pathSections:ArraySlice<String>) -> ActorRef? {
         return actorCell?.actorFor(pathSections)
     }
 
+    /// Look for an actor in the current actor context
+    /// The input is an absolute path, staring with "/", or relative path,
+    /// starting with "." or ".." or a name. 
+    /// For example, if there is an actor "/user/Parent/Son". And if the 
+    /// actorFor() is called in "/user/Parent" actor with input is "Son", or 
+    /// "./Son", or "../Parent/Son", or "/user/Parent/Son", the
+    /// "/user/Parent/Son" will be returned.
+    /// - Parameter path: Relative path in String
+    /// - Returns: The actor ref corresponding to the path or nil if not found
     public func actorFor(_ path:String) -> ActorRef? {
         return actorCell?.actorFor(path)
     }
@@ -87,6 +102,7 @@ public class ActorRef: CustomStringConvertible {
         if let actorCell = self.actorCell {
             actorCell.stop() // the system message
         } else {
+            // TODO:
             //send error msg to system. log
         }
     }

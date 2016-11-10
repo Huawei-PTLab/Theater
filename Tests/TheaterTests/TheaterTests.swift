@@ -30,7 +30,7 @@ class TheaterTests: XCTestCase {
     }
 
     func testCloudEdge() {
-        simpleCase(count:5)
+        simpleCase(count:1000)
     }
 
     static var allTests: [(String, (TheaterTests) -> () throws -> Void)] {

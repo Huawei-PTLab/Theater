@@ -12,8 +12,8 @@ import Dispatch
 
 
 /// All actors live in 'ActorSystem'. You might have more than 1 actor system.
-/// ActorSystem contains a special actorCell and an actor instrance with some
-/// special error handling mechanism
+/// ActorSystem contains a special actorCell and an actor instance with some
+/// special error handling mechanisms
 public class ActorSystem : CustomStringConvertible {
 
     /// The name of this ActorSystem
@@ -49,12 +49,13 @@ public class ActorSystem : CustomStringConvertible {
         userContext.actor = Actor(context:userContext)
     }
 
-    /// Used for child actor cell to get an exeuction queue
+    /// Used for a child actor cell to get an exeuction queue
     internal func assignQueue() -> DispatchQueue {
         return dispatcher.assignQueue()
     }
 
 
+    /// Create an actor from an actor constructor with a name
     public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
                         name: String) -> ActorRef {
         return userRef.actorCell!.actorOf(actorConstructor, name:name)
@@ -67,7 +68,6 @@ public class ActorSystem : CustomStringConvertible {
 
         if pathSections.count == 0 { return nil }
         if pathSections.first! == "user" {
-            print("now check user")
             return userRef.actorFor(pathSections.dropFirst())
         } else {
             return nil
@@ -86,6 +86,7 @@ public class ActorSystem : CustomStringConvertible {
         return actorFor(pathSecs)
     }
 
+    /// TBD. Not a stable API.
     public func selectActor(pathString : String, by requestor:ActorRef,
                             _ action:@escaping (ActorRef?)->Void) {
         userRef ! Actor.ActorSelect(path:pathString, sender:requestor, action)

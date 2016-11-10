@@ -10,8 +10,8 @@ import Foundation
 
 extension Actor {
 
-    /// Actors can only interact with Actor.Message. Message has a sender field, which the receiver can use to 
-    /// reply
+    /// Actors can only interact with Actor.Message. Message has a sender field,
+    /// which the receiver can use to reply
     /// Message has two categories, SystemMessage and normal Message
     open class Message : CustomStringConvertible {
 
@@ -32,20 +32,15 @@ extension Actor {
     /// PoisonPill is the default message to kill an actor.
     public final class PoisonPill : SystemMessage {}
 
-    /// Terminated message is used for a child actor notifying its parent that its termination process is done.
+    /// Terminated message is used for a child actor notifying its parent that
+    /// its termination process is done.
     public final class Terminated: SystemMessage {}
 
-    /**
-    Convenient Message subclass which has an operationId that can be used to track a transaction or some sort of message that needs to be tracked
-    */
+    /// Convenient Message subclass which has an operationId that can be used to 
+    /// track a transaction or some sort of message that needs to be tracked
+    public class MessageWithOperationId : SystemMessage {
 
-    public class MessageWithOperationId : Message {
-        
-        /**
-         
-        The operationId used to track the Operation
-         
-        */
+        /// The operationId used to track the Operation
         public let operationId : NSUUID
         
         public init(sender: Optional<ActorRef>, operationId : NSUUID) {
@@ -63,8 +58,9 @@ extension Actor {
         }
     }
 
-    /// DeadLetter is an Actor System generated message that is sent to the sender of the original message
-    /// when it tries to send a message to an ActorRef that has no bound actor, or the destnation actor is 
+    /// DeadLetter is an Actor System generated message that is sent to the
+    /// sender of the original message when it tries to send a message to an 
+    /// ActorRef that has no bound actor, or the destnation actor is
     /// dead.
     public class DeadLetter : SystemMessage {
         
