@@ -57,8 +57,8 @@ public class PingPong {
     let pong : ActorRef
     
     public init() {
-        self.ping = system.actorOf(Ping.init, name: "ping")
-        self.pong = system.actorOf(Pong.init, name: "pong")
+        self.ping = system.actorOf(name: "ping", Ping.init)
+        self.pong = system.actorOf(name: "pong", Pong.init)
         kickOffGame()
     }
     

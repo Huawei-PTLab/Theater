@@ -15,6 +15,7 @@ class TheaterTests: XCTestCase {
         let f = Family()
         sleep(1) //Wait for finish
         f.stop()
+        sleep(1)
 
     }
     func testPingPong() {

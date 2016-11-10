@@ -154,7 +154,7 @@ class Server: Actor {
                 #endif
             } else {
                 index += 1
-                let container = context.actorOf(Container.init, name: String(format: "Container%d", index))
+                let container = context.actorOf(name: String(format: "Container%d", index), Container.init)
                 activeContainer[index] = container
                 #if DEBUG
                     print("\(Server.self).\(#function): create new container \(container)")
@@ -258,12 +258,13 @@ class Monitor: Actor {
 
 func simpleCase(count:Int) {
     let system = ActorSystem(name: systemName, dispatcher:ShareDispatcher(queues:1))
-    let server = system.actorOf(Server.init, name: serverName)
-    let monitor = system.actorOf(Monitor.init, name: monitorName)
+    let server = system.actorOf(name: serverName, Server.init)
+    let monitor = system.actorOf(name: monitorName, Monitor.init)
     for i in 0..<count {
-        let client = system.actorOf( {(context:ActorCell) in
-                     Client(context:context, server:server, monitor:monitor)},
-                                    name: "Client\(i)")
+        let client = system.actorOf(name: "Client\(i)") {
+                       (context:ActorCell) in
+                         Client(context:context, server:server, monitor:monitor)
+                     }
         let timestamp = timeval(tv_sec: 0, tv_usec:0)
         client ! Request(client: i, server: 0, timestamp: timestamp)
         usleep(1000)

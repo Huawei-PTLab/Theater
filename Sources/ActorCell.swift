@@ -75,15 +75,15 @@ public class ActorCell : CustomStringConvertible {
         self.underlyingQueue = system.assignQueue()
     }
 
-    /// Create a random name actor in the current context
-    public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor)
-                  -> ActorRef {
-        return actorOf(actorConstructor, name: NSUUID().uuidString)
-    }
-
-    /// Create a new child actor in this context
-    public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
-                        name: String) -> ActorRef {
+    /// Create a new child actor from an actor constructor with a name in the
+    /// context
+    /// Parameter name: the name of the actor. If not assigned, an UUID will 
+    ///   be used.
+    /// Parameter actorConstructor: how to create the actor, the type must be
+    ///  `(ActorCell)->Actor`. It could be an actor's constructor or a closure.
+    public func actorOf(name: String = NSUUID().uuidString,
+                        _ actorConstructor: @escaping (ActorCell)->Actor
+                        ) -> ActorRef {
         var name = name
         if name == "" || name.contains("/") {
             name = NSUUID().uuidString

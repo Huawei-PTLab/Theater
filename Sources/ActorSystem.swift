@@ -56,9 +56,13 @@ public class ActorSystem : CustomStringConvertible {
 
 
     /// Create an actor from an actor constructor with a name
-    public func actorOf(_ actorConstructor: @escaping (ActorCell)->Actor,
-                        name: String) -> ActorRef {
-        return userRef.actorCell!.actorOf(actorConstructor, name:name)
+    /// Parameter name: the name of the actor
+    /// Parameter actorConstructor: how to create the actor, the type must be
+    ///  `(ActorCell)->Actor`. It could be an actor's constructor or a closure.
+    public func actorOf(name: String,
+                        _ actorConstructor: @escaping (ActorCell)->Actor
+                       ) -> ActorRef {
+        return userRef.actorCell!.actorOf(name:name, actorConstructor)
     }
 
 

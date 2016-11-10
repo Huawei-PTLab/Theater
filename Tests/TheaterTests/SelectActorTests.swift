@@ -24,8 +24,8 @@ class SelectActorTests: XCTestCase {
 
     func testFlat() {
         let system = ActorSystem(name: "system")
-        let _ = system.actorOf(Ping.init, name: "Ping")
-        let _ = system.actorOf(Pong.init, name: "Pong")
+        let _ = system.actorOf(name: "Ping", Ping.init)
+        let _ = system.actorOf(name: "Pong", Pong.init)
 
         let ping =  system.actorFor("/user/Ping")
         let pong =  system.actorFor("/user/Pong")
@@ -39,8 +39,8 @@ class SelectActorTests: XCTestCase {
 
     func testNested() {
         let system = ActorSystem(name: "system")
-        let foo = system.actorOf(PingParent.init, name: "Foo")
-        let bar = system.actorOf(PongParent.init, name: "Bar")
+        let foo = system.actorOf(name: "Foo", PingParent.init)
+        let bar = system.actorOf(name: "Bar", PongParent.init)
         foo ! Create(sender: nil)
         bar ! Create(sender: nil)
         sleep(1) //Wait until the two actors are created
@@ -57,10 +57,10 @@ class SelectActorTests: XCTestCase {
 
     func testFlatAndNested() {
         let system = ActorSystem(name: "system")
-        let foo = system.actorOf(PingParent.init, name: "Foo")
+        let foo = system.actorOf(name: "Foo", PingParent.init)
         foo ! Create(sender: nil)
         sleep(1) //Wait until foo is created
-        let _ = system.actorOf(Pong.init, name: "Pong")
+        let _ = system.actorOf(name: "Pong", Pong.init)
 
         let ping = system.actorFor("/user/Foo/Ping")
         let pong = system.actorFor("/user/Pong")
@@ -74,8 +74,8 @@ class SelectActorTests: XCTestCase {
 
     func testActorForInActor() {
         let system = ActorSystem(name: "system")
-        let _ = system.actorOf(HeadlessPing.init, name: "Ping")
-        let _ = system.actorOf(HeadlessPong.init, name: "Pong")
+        let _ = system.actorOf(name: "Ping", HeadlessPing.init)
+        let _ = system.actorOf(name: "Pong", HeadlessPong.init)
         sleep(1) //Wati until actor is created
         let ping = system.actorFor("/user/Ping")
         XCTAssertNotNil(ping)
@@ -92,7 +92,7 @@ class PingParent: Actor {
     override func receive(_ msg: Actor.Message) {
         switch(msg) {
         case is Create:
-            let _ = context.actorOf(Ping.init, name: "Ping")
+            let _ = context.actorOf(name: "Ping", Ping.init)
         default:
             print("unexpected message")
         }
@@ -103,7 +103,7 @@ class PongParent: Actor {
     override func receive(_ msg: Actor.Message) {
         switch(msg) {
         case is Create:
-            let _  = context.actorOf(Pong.init, name: "Pong")
+            let _  = context.actorOf(name: "Pong", Pong.init)
         default:
             print("unexpected message")
         }

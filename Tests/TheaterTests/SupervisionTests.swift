@@ -22,7 +22,7 @@ class SupervisionTests: XCTestCase {
 
     func testUnexpectedMessageError() {
         let system = ActorSystem(name: "system")
-        let a = system.actorOf(DefaultSupervisor.init, name: "DefaultSupervisor")
+        let a = system.actorOf(name:"DefaultSupervisor", DefaultSupervisor.init)
         // If test succeeds, error should be thrown and caught by "system/user"
         a ! Foo(sender: nil)
         sleep(1)
@@ -30,7 +30,8 @@ class SupervisionTests: XCTestCase {
 
     func testRestart() {
         let system = ActorSystem(name: "testRestart")
-        let parent = system.actorOf(CounterActorSupervisor.init, name: "supervisor")
+        let parent = system.actorOf(name: "supervisor",
+                                    CounterActorSupervisor.init)
         parent ! CreateChild(sender: nil)
         sleep(1) // Wait the child to be created, otherwise the slectActor may get nothing
         let counter = system.actorFor("/user/supervisor/counter")
@@ -51,7 +52,8 @@ class SupervisionTests: XCTestCase {
 
     func testEscalate() {
         let system = ActorSystem(name: "testRestart")
-        let parent = system.actorOf(CounterActorSupervisor.init, name: "supervisor")
+        let parent = system.actorOf(name: "supervisor",
+                                    CounterActorSupervisor.init)
         parent ! CreateChild(sender: nil)
         sleep(1) // Wait the child to be created, otherwise the slectActor may get nothing
         let counter = system.actorFor("/user/supervisor/counter")
@@ -107,7 +109,10 @@ class CounterActorSupervisor: Actor {
     override func receive(_ msg: Actor.Message) throws -> Void {
         switch(msg) {
         case is CreateChild:
-            let _ = context.actorOf({ (context:ActorCell) in CounterActor(context:context, start: 0)}, name: "counter")
+            let _ = context.actorOf(name: "counter") {
+                      (context:ActorCell) in
+                         CounterActor(context:context, start: 0)
+                    }
         default:
             throw TheaterError.unexpectedMessage(msg: msg)
         }

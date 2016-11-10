@@ -32,8 +32,8 @@ class Parent : Actor {
     var daughter: ActorRef!
 
     override init(context:ActorCell) {
-        son = context.actorOf(Child.init, name:"son")
-        daughter = context.actorOf(Child.init, name:"daughter")
+        son = context.actorOf(name:"son", Child.init)
+        daughter = context.actorOf(name:"daughter", Child.init)
         super.init(context:context)
     }
     
@@ -54,7 +54,7 @@ public class Family {
     let parent : ActorRef
     
     public init() {
-        parent = system.actorOf(Parent.init, name: "Parent")
+        parent = system.actorOf(name: "Parent", Parent.init)
         parent ! Actor.Message(sender:nil)        
     }
 
