@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import Dispatch
 
 
 /// ActorCell is the container of an Actor instance. The actor cell and instance
