@@ -193,8 +193,8 @@ swift build
 .build/debug/PingPong
 ```
 
-Other features and usages can be found under [Docs](docs) or read the
-[Tests\TheaterTests](Tests\TheaterTests).
+Other features and usages can be found under [Docs](Docs) or read the
+[Tests/TheaterTests](Tests/TheaterTests).
 
 
 # Developing Theator 
@@ -217,9 +217,9 @@ Use the following command to build and test
 swift build && swift test
 ```
 
-All the current tests can be found in [Tests\TheaterTests](Tests\TheaterTests).
+All the current tests can be found in [Tests/TheaterTests](Tests/TheaterTests).
 
 ## Design
 
-Design document is under [Docs](docs).
+Design document is under [Docs](Docs).
 
