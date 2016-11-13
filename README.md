@@ -1,48 +1,225 @@
 # Theater: Actor Framework for Swift 
 
-Theater is an open source Actor model framework for Swift, featuring lightweight implementation, user-friendly APIs, and more. 
-
-The design is insipred by [Akka](http://akka.io), and this project is forked from [darioalessandro/Theater](https://github.com/darioalessandro/Theater).
+Theater is an open source Actor model framework for Swift, featuring lightweight
+implementation, user-friendly APIs, and more. The design is insipred by 
+[AKKA](http://akka.io), and this project is forked from
+[darioalessandro/Theater](https://github.com/darioalessandro/Theater).
 
 Major changes have been made in our version of Theator, including
-* Fixing correctness issues, like data race in the actor path update.
-* Performance Improvement, in some test cases, 10x faster
-* Important new features, like Actor Selection from Path, Supervision mechanism, etc.
-* Architecture and API refactoring to support new features
+* **Fixing Correctness Issues**: like data race in the actor path update.
+* **Performance Improvement**: in some test cases, 10x faster
+* **Better APIs and Internal Architecture**: for performance and new features
+* **Important New Features**: like locating Actor from Path, supervision 
+  mechanism, etc.
 
-# Build Theater #
+This actor library is based on Swift3.0, and support both Mac and Linux 
+platform. Applications with millions of Actors have been tested with the library.
 
-## Install **swift** and **libdispatch**
+# Usage Example
 
-Install the latest Swift Trunk version, like Aug 26, 2016 from [Swift.org](https://swift.org/download/#snapshots)
+## Tutorial
 
-The latest snapshot version has shipped with libdispatch. No additional compiling is required.
+Here we use a small PingPong example to show the usage.
+
+First, we create a Swift package
+```bash
+mkdir PingPong && cd PingPong
+swift package init --type executable
+```
+Modify the *Package.swift* file to add the dependence to Theater
+```swift
+import PackageDescription
+
+let package = Package(
+    name: "PingPong",
+    dependencies: [
+      .Package(url: "git@github.com:Huawei-PTLab/Theater.git",
+	       versions: Version(1,2,1)..<Version(2,0,0)),
+    ]
+)
+```
+
+Now let's modify the *Sources/main.swift* file. 
+
+First we define the PingPong's message `Ball`, which inherits `Actor.Message`.
+All actors can only interact with each other with messages. `Actor.Message` has
+a field `let sender:ActorRef?`. The receiver of the message can use the `sender`
+to send message back. 
+
+```swift
+class Ball : Actor.Message {}
+```
+
+We then define the simple `Pong` actor, which inhertis `Actor`. The most 
+important thing to implement one actor is to override the `receive()` function,
+so that the actor can perform actions if it receives messages. Because an actor
+may receive different types of messages, a `switch` is commonly used inside
+the `receive()` function.
+
+Here, we only print a "pong" text, and then send a new Ball back. Although in 
+our sample code, there is a `Thread.sleep()`, it's not a good idea to sleep in
+side an actor's `recieve()` function in typical situation.
+
+
+```swift
+class Pong : Actor {
+    override func receive(_ msg: Actor.Message) throws {
+        switch(msg) {
+        case is Ball:
+            print("Pong")
+            Thread.sleep(forTimeInterval: 1)
+            msg.sender! ! Ball(sender: this)
+        default:
+            print("wrong type msg")
+        }
+    }
+}
+```
+In order to create the `Pong` actor, we first need to an actor system, and use
+the `actorOf` function. This function requires a String name and an actor
+constructor with type `(ActorCell)->Actor`.  Because `Actor` class's `init()` is
+this type, we just use it directly.
+
+```
+let system = ActorSystem(name: "PingPong")
+let pong:ActorRef = system.actorOf(name:"pong", Pong.init)
+``` 
+`actorOf` returns an `actorRef` pointing to the real Pong actor. The **Actor**
+and **ActorRef** concepts are directly borrowed from AKKA. **ActorRef** is 
+exposed to the users while the logic of the actor is hidden inside the **Actor**.
+
+Now we can define our `Ping` class, which contains a field to `Pong`. 
+
+```swift
+class Ping : Actor {
+    let pong : ActorRef 
+    init(context:ActorCell, pong:ActorRef) {
+        self.pong = pong
+        super.init(context:context)
+    }
+
+    override func receive(_ msg: Actor.Message) throws {
+        switch(msg) {
+        case is Ball:
+            print("Ping")
+            Thread.sleep(forTimeInterval: 1)
+            pong ! Ball(sender: this)
+        default:
+            print("wrong type msg")
+        }
+    }
+}
+```
+
+In order to set the `pong` field, we defined a new constructor. Because the 
+new constructor's type is different to `(ActorCell)->Actor`, in order to create
+the actor, we can use a closure. 
+
+```switch
+let ping = system.actorOf(name:"ping") {
+    context in Ping(context:context, pong:pong)
+}
+```
+
+The reason a closure or a constructor is 
+required for `system.actorOf()` is for the fault-tolerance feature. If the real
+actor instance is dead for some reason, the actor system can restart it with
+the constructor and all the parameters. With the speration of `ActorRef` and 
+`Actor`, the external world does not need to know what's happened inside. 
+
+Finally, we send the `ping` a ball to start the pingpong game. Because of the
+current Swift's threading model, we have to wait in the main thread otherwise
+the application will terminate immediately. We are working on fixing the 
+limitation by providing an API to block on the actor system until it terminates.
+
+```
+ping ! Ball(sender:nil)
+Thread.sleep(forTimeInterval: 5)
+```
+
+Let's put all together
+
+```swift
+import Foundation
+import Theater
+
+class Ball : Actor.Message {}
+
+class Ping : Actor {
+    let pong : ActorRef 
+    init(context:ActorCell, pong:ActorRef) {
+        self.pong = pong
+        super.init(context:context)
+    }
+
+    override func receive(_ msg: Actor.Message) throws {
+        switch(msg) {
+        case is Ball:
+            print("Ping")
+            Thread.sleep(forTimeInterval: 1)
+            pong ! Ball(sender: this)
+        default:
+            print("wrong type msg")
+        }
+    }
+}
+
+class Pong : Actor {
+    override func receive(_ msg: Actor.Message) throws {
+        switch(msg) {
+        case is Ball:
+            print("Pong")
+            Thread.sleep(forTimeInterval: 1)
+            msg.sender! ! Ball(sender: this)
+        default:
+            print("wrong type msg")
+        }
+    }
+}
+
+let system = ActorSystem(name: "PingPong")
+let pong = system.actorOf(name:"pong", Pong.init)
+let ping = system.actorOf(name:"ping") {
+    context in Ping(context:context, pong:pong)
+}
+
+ping ! Ball(sender:nil)
+Thread.sleep(forTimeInterval: 5)
+```
+Compile it and run
+
+```bash
+swift build
+.build/debug/PingPong
+```
+
+Other features and usages can be found under [Docs](docs) or read the
+[Tests\TheaterTests](Tests\TheaterTests).
+
+
+# Developing Theator 
 
 ## Compile Theater
 
-Theater uses standard [swift package manager]("https://github.com/apple/swift-package-manager"):
+Theater uses standard 
+[swift package manager]("https://github.com/apple/swift-package-manager"):
 
-	swift build -Xswiftc -Ounchecked -Xswiftc -g
+```bash
+swift build -Xswiftc -Ounchecked -Xswiftc -g
+```
 
 The `-Ounchecked` and `-g` options are optional.
 
-# Testing #
+## Testing #
 
 Use the following command to build and test
+```bash
+swift build && swift test
+```
 
-	swift build && swift test
+All the current tests can be found in [Tests\TheaterTests](Tests\TheaterTests).
 
-Current test suite includes:
+## Design
 
-* PingPong
-* Greetings
-* CloudEdge
-
-# Features #
-
-TODO
-
-# Usage #
-
-Check the examples in `Tests/Theater/` for sample usage.
+Design document is under [Docs](docs).
 
