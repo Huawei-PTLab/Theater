@@ -1,0 +1,6 @@
+language: objective-c
+osx_image: xcode8.1
+env:
+  - TOOLCHAINS=swift
+script:
+  - swift build
