@@ -1,5 +1,11 @@
 # Theater: Actor Framework for Swift 
 
+[![Build Status](https://travis-ci.org/Huawei-PTLab/Theater.svg?branch=master)](https://travis-ci.org/Huawei-PTLab/Theater)
+![macOS](https://img.shields.io/badge/os-macOS-green.svg?style=flat)
+![Linux](https://img.shields.io/badge/os-linux-green.svg?style=flat)
+![Apache 2](https://img.shields.io/badge/license-Apache2-blue.svg?style=flat)
+
+
 Theater is an open source Actor model framework for Swift, featuring lightweight
 implementation, user-friendly APIs, and more. The design is insipred by 
 [AKKA](http://akka.io), and this project is forked from
