@@ -32,6 +32,16 @@ public class ActorPath : CustomStringConvertible {
     }
 }
 
+extension ActorPath: Hashable {
+    public var hashValue: Int {
+        return asString.hashValue
+    }
+}
+
+public func ==(lhs: ActorPath, rhs: ActorPath) -> Bool {
+    return lhs.asString == rhs.asString
+}
+
 /// ActorRef is a reference to an Actor (ActorCell)
 /// Programmer typically will always talk to the actor throught this ref
 public class ActorRef: CustomStringConvertible {
@@ -106,4 +116,14 @@ public class ActorRef: CustomStringConvertible {
             //send error msg to system. log
         }
     }
+}
+
+extension ActorRef : Hashable {
+    public var hashValue: Int {
+        return path.hashValue
+    }
+}
+
+public func ==(lhs: ActorRef, rhs: ActorRef) -> Bool {
+    return lhs.path == rhs.path
 }
