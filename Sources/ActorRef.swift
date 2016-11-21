@@ -104,7 +104,8 @@ public class ActorRef: CustomStringConvertible {
             ///Here we should just put the msg into actorCell's queue
             actorCell.tell(msg)
         } else {
-            print("[WARNING] Fail to deliver message \(msg) from \(msg.sender) to \(self)")
+            let senderString = msg.sender != nil ? "from \(msg.sender!) " : ""
+            print("[WARNING] Fail to deliver message \(msg) \(senderString)to \(self)")
         }
     }
 
