@@ -33,8 +33,8 @@ class SelectActorTests: XCTestCase {
         XCTAssertNotNil(pong)
         pong! ! Ball(sender: ping)
         sleep(5)
-        system.stop()
-        sleep(2)
+        system.shutdown()
+        system.wait()
     }
 
     func testNested() {
@@ -51,8 +51,8 @@ class SelectActorTests: XCTestCase {
         XCTAssertNotNil(pong)
         pong! ! Ball(sender: ping)
         sleep(5)
-        system.stop()
-        sleep(1)
+        system.shutdown()
+        system.wait()
     }
 
     func testFlatAndNested() {
@@ -68,8 +68,8 @@ class SelectActorTests: XCTestCase {
         XCTAssertNotNil(pong)
         pong! ! Ball(sender: ping)
         sleep(5)
-        system.stop()
-        sleep(2)
+        system.shutdown()
+        system.wait()
     }
 
     func testActorForInActor() {
@@ -81,8 +81,8 @@ class SelectActorTests: XCTestCase {
         XCTAssertNotNil(ping)
         ping! ! Ball(sender: nil)
         sleep(5)
-        system.stop()
-        sleep(2)
+        system.shutdown()
+        system.wait()
     }
 }
 

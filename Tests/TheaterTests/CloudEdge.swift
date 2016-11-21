@@ -271,8 +271,8 @@ func simpleCase(count:Int) {
     }
     sleep(3)
     monitor ! ShowResult(sender: nil)
-    system.stop()
-    sleep(2)
+    system.shutdown()
+    system.wait()
 }
 /*
 var count:Int = 1000

@@ -20,7 +20,7 @@ public class ActorCell : CustomStringConvertible {
     weak var parent : ActorRef? /// Only actor system's cell's parent is nil
 
     /// A quick path to access the current ActorSystem
-    unowned let system : ActorSystem
+    public unowned let system : ActorSystem
 
     /// To the ActorRef of this actor. Unowned due to not want to cause cycle
     unowned let this: ActorRef
@@ -280,7 +280,8 @@ public class ActorCell : CustomStringConvertible {
                             parent ! Actor.Terminated(sender: self.this)
                         } else {
                             // This is the root of supervision tree
-                            print("[INFO] \(self) termianted")
+                            print("[INFO] \(self.system) termianted")
+                            self.system.semaphore.signal()
                         }
                     }
                 }

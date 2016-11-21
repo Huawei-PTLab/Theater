@@ -11,9 +11,10 @@ import Dispatch
 
 
 
-/// All actors live in 'ActorSystem'. You might have more than 1 actor system.
-/// ActorSystem contains a special actorCell and an actor instance with some
-/// special error handling mechanisms
+/// All actors live in 'ActorSystem'. There may be more than one actor system in
+/// an application.
+/// ActorSystem contains a special actorCell, the `userContext`, and an actor
+/// instance with some special error handling mechanisms
 public class ActorSystem : CustomStringConvertible {
 
     /// The name of this ActorSystem
@@ -29,6 +30,9 @@ public class ActorSystem : CustomStringConvertible {
     /// The rootRef of this system
     private let userRef:ActorRef
 
+    /// Interal semaphore to control the life cycle
+    let semaphore:DispatchSemaphore
+
 
     /// Create the actor system
     /// - parameter name: The name of the actor system
@@ -40,6 +44,7 @@ public class ActorSystem : CustomStringConvertible {
         self.dispatcher = dispatcher
 
         userRef = ActorRef(path: ActorPath(path:"/user"))
+        semaphore = DispatchSemaphore(value: 0)
         let userContext = ActorCell(system:self,
                                     parent:nil,
                                     actorConstructor: Actor.init,
@@ -47,6 +52,7 @@ public class ActorSystem : CustomStringConvertible {
         userRef.actorCell = userContext
         // Later we can create an actor with special error handling mechanism
         userContext.actor = Actor(context:userContext)
+
     }
 
     /// Used for a child actor cell to get an exeuction queue
@@ -96,7 +102,28 @@ public class ActorSystem : CustomStringConvertible {
         userRef ! Actor.ActorSelect(path:pathString, sender:requestor, action)
     }
 
-    public func stop() {
+    /// Wait the ActorSystem to be shut down, otherwise wait forever.
+    /// User can call waitFor
+    public func wait() {
+        semaphore.wait()
+    }
+
+    /// Wait for the ActorSystem to be shut down for the input input `seconds`.
+    /// If timeout, stop waiting and continue.
+    /// - return DispatchTimeoutResult, which is an enumeration .success or 
+    ///   .timedOut
+    public func waitFor(seconds:Int) -> DispatchTimeoutResult {
+        return semaphore.wait(timeout: DispatchTime.now() + .seconds(seconds))
+    }
+
+    /// Shut down the actor system. This will trigger a poison pill message sent
+    /// to the root actor, and it then will send poison pills to all the actors
+    /// recursively until the whole system shut down.
+    /// The shut down process may last long depends the whole actor system.
+    ///
+    /// This can be called outside the actor system or inside the actor system.
+    /// For example, in an actor's code, `context.system.shutDown()`.
+    public func shutdown() {
         userRef.actorCell!.stop()
     }
     

@@ -55,11 +55,11 @@ public class Family {
     
     public init() {
         parent = system.actorOf(name: "Parent", Parent.init)
-        parent ! Actor.Message(sender:nil)        
+        parent ! Actor.Message(sender:nil)
     }
 
     func stop() {
-        system.stop();
+        system.shutdown();
     }
 
 }

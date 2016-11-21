@@ -1,6 +1,7 @@
 # Theater: Actor Framework for Swift 
 
 [![Build Status](https://travis-ci.org/Huawei-PTLab/Theater.svg?branch=master)](https://travis-ci.org/Huawei-PTLab/Theater)
+![Swift3](https://img.shields.io/badge/Swift-3.0-orange.svg?style=flat)
 ![macOS](https://img.shields.io/badge/os-macOS-green.svg?style=flat)
 ![Linux](https://img.shields.io/badge/os-linux-green.svg?style=flat)
 ![Apache 2](https://img.shields.io/badge/license-Apache2-blue.svg?style=flat)
@@ -40,7 +41,7 @@ let package = Package(
     name: "PingPong",
     dependencies: [
       .Package(url: "git@github.com:Huawei-PTLab/Theater.git",
-	       versions: Version(1,2,1)..<Version(2,0,0)),
+	       versions: Version(1,2,2)..<Version(2,0,0)),
     ]
 )
 ```
@@ -64,7 +65,7 @@ the `receive()` function.
 
 Here, we only print a "pong" text, and then send a new Ball back. Although in 
 our sample code, there is a `Thread.sleep()`, it's not a good idea to sleep in
-side an actor's `recieve()` function in typical situation.
+side an actor's `recieve()` function in a typical situation.
 
 
 ```swift
@@ -81,7 +82,7 @@ class Pong : Actor {
     }
 }
 ```
-In order to create the `Pong` actor, we first need to an actor system, and use
+In order to create the `Pong` actor, we first need an actor system, and use
 the `actorOf` function. This function requires a String name and an actor
 constructor with type `(ActorCell)->Actor`.  Because `Actor` class's `init()` is
 this type, we just use it directly.
@@ -135,12 +136,15 @@ the constructor and all the parameters. With the speration of `ActorRef` and
 
 Finally, we send the `ping` a ball to start the pingpong game. Because of the
 current Swift's threading model, we have to wait in the main thread otherwise
-the application will terminate immediately. We are working on fixing the 
-limitation by providing an API to block on the actor system until it terminates.
-
+the application will terminate immediately. We wait 5 seconds in main thread, 
+and shut down the actor system by calling `system.shutdown()`, which is a 
+non-blocking call. Then we call `system.wait()` until the whole system is 
+completely shut down. 
 ```
 ping ! Ball(sender:nil)
 Thread.sleep(forTimeInterval: 5)
+system.shutdown()
+system.wait()
 ```
 
 Let's put all together
@@ -191,6 +195,8 @@ let ping = system.actorOf(name:"ping") {
 
 ping ! Ball(sender:nil)
 Thread.sleep(forTimeInterval: 5)
+system.shutdown()
+system.wait()
 ```
 Compile it and run
 

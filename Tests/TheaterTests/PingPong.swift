@@ -24,8 +24,12 @@ class Ping : Actor {
                 print("Ping counter: \(counter)")
                 //Never sleep in an actor, this is for demo!
                 Thread.sleep(forTimeInterval: 1)
-                msg.sender! ! Ball(sender: this)
-            
+                //Never sleep in an actor, this is for demo!
+                if counter == 3 {
+                    context.system.shutdown()
+                } else {
+                  msg.sender! ! Ball(sender: this)
+                }
             default:
                 try super.receive(msg)
         }
@@ -40,7 +44,6 @@ class Pong : Actor {
         case is Ball:
             counter += 1
             print("Pong counter: \(counter)")
-            //Never sleep in an actor, this is for demo!
             Thread.sleep(forTimeInterval: 1)
             msg.sender! ! Ball(sender: this)
             
@@ -59,14 +62,11 @@ public class PingPong {
     public init() {
         self.ping = system.actorOf(name: "ping", Ping.init)
         self.pong = system.actorOf(name: "pong", Pong.init)
-        kickOffGame()
-    }
-    
-    func kickOffGame() {
         pong ! Ball(sender: ping)
     }
-    func stop() {
-        system.stop();
+
+    func waitforStop() {
+        _ = self.system.waitFor(seconds:20)
     }
 
 }
