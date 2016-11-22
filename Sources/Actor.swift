@@ -145,6 +145,14 @@ open class Actor {
     /// willStop() is called when an Actor receives stop message and before any 
     /// destruction operations. User can override this function to do cleanup.
     open func willStop() -> Void {   }
+    
+    /// postStop() is called after an actor has stopped. This indicates that all
+    /// of its children have stopped and it is ready to be cleaned up.
+    open func postStop() -> Void {   }
+    
+    /// childTerminated(:) is called when an actor's child reports that it was 
+    /// terminated, allowing the actor to take any necessary actions.
+    open func childTerminated(_ child: ActorRef) {   }
 
     deinit {
         #if DEBUG

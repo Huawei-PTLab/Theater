@@ -248,10 +248,13 @@ public class ActorCell : CustomStringConvertible {
             self.dying = true
             actor.willStop() /// At this point,  actor is still valid
             sync {
-                if self.children.count == 0 && self.parent != nil {
-                    // sender must not be null because the parent needs this
-                    // to remove current actor from children dictionary
-                    self.parent! ! Actor.Terminated(sender: self.this)
+                if self.children.count == 0 {
+                    if self.parent != nil {
+                        // sender must not be null because the parent needs this
+                        // to remove current actor from children dictionary
+                        self.parent! ! Actor.Terminated(sender: self.this)
+                    }
+                    actor.postStop()
                 } else {
                     self.children.forEach { (_,actorRef) in
                         actorRef ! Actor.PoisonPill(sender:self.this)
@@ -259,6 +262,8 @@ public class ActorCell : CustomStringConvertible {
                 }
             }
         case let t as Actor.Terminated: //Child notifies parent that it stopped
+            actor.childTerminated(t.sender)
+            
             // Remove child actor from the children dictionary.
             // If current actor is also waiting to die, check the size of
             // children and die right away if all children are already dead.
@@ -283,6 +288,7 @@ public class ActorCell : CustomStringConvertible {
                             print("[INFO] \(self.system) termianted")
                             self.system.semaphore.signal()
                         }
+                        actor.postStop()
                     }
                 }
             }
