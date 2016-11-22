@@ -148,10 +148,14 @@ open class Actor {
     
     /// postStop() is called after an actor has stopped. This indicates that all
     /// of its children have stopped and it is ready to be cleaned up.
+    /// Note, at this time, the child has sent the `Terminated` message to its
+    /// parent. The child's actorRef may nor may not been cleaned.
     open func postStop() -> Void {   }
     
     /// childTerminated(:) is called when an actor's child reports that it was 
-    /// terminated, allowing the actor to take any necessary actions.
+    /// terminated, allowing the parent to take any necessary actions.
+    /// Note, at this time the child has not been removed from the parent's 
+    /// children map.
     open func childTerminated(_ child: ActorRef) {   }
 
     deinit {

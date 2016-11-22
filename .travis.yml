@@ -1,5 +1,9 @@
 language: objective-c
 osx_image: xcode8.1
+
+notifications:
+  slack: swiftactor:G2lnNb1j9OWybj8HAsynVBi3
+
 env:
   - TOOLCHAINS=swift
 script:
