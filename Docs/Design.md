@@ -88,7 +88,7 @@ whole actor system could be cleaned.
 Case 2: if the actorRef is stored to a variable. And if its parent removes
 the actor (removing the actorRef from the parent's children, and disconnect the
 actorRef to actorCell's link). The actorCell and actor instance will be cleaned
-but the actorCell itself are still there, referenced by that variable.
+but the actorRef itself are still there, referenced by that variable.
 
 Case 3: free an actor instance. Set `ActorCell.actor = nil` or another actor. 
 And the previous actor instance should be cleaned.
@@ -154,13 +154,16 @@ An actor system or an actor cell uses `actorOf()` to create a new actor.
 ## Support Different Paralel Executor 
 We plan to support these exectuors
 * Default Dispatcher
-  Each ActorCell has a LibDispatch Queue. Mssage queue is also the operation queue
+  Each ActorCell has a LibDispatch Queue. Mssage queue is also the operation
+  queue
 * Share Dispatcher
   All actors share N libDispatch Queue. Random assign at the beginning
 * Sequential Dispatcher
-  Each actor has its own message queue. A simple sequential executor based on task queue for operation scheduling
+  Each actor has its own message queue. A simple sequential executor based on 
+  task queue for operation scheduling
 * Parallel Dispatcher
-  Each actor has its own message queue. A shared libDispatch parallel queue for operation scheduling
+  Each actor has its own message queue. A shared libDispatch parallel queue for
+  operation scheduling
 
 # Design Decisions
 

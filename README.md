@@ -29,11 +29,14 @@ platform. Applications with millions of Actors have been tested with the library
 Here we use a small PingPong example to show the usage.
 
 First, we create a Swift package
+
 ```bash
 mkdir PingPong && cd PingPong
 swift package init --type executable
 ```
+
 Modify the *Package.swift* file to add the dependence to Theater
+
 ```swift
 import PackageDescription
 
@@ -67,7 +70,6 @@ Here, we only print a "pong" text, and then send a new Ball back. Although in
 our sample code, there is a `Thread.sleep()`, it's not a good idea to sleep in
 side an actor's `recieve()` function in a typical situation.
 
-
 ```swift
 class Pong : Actor {
     override func receive(_ msg: Actor.Message) throws {
@@ -87,10 +89,11 @@ the `actorOf` function. This function requires a String name and an actor
 constructor with type `(ActorCell)->Actor`.  Because `Actor` class's `init()` is
 this type, we just use it directly.
 
-```
+```swift
 let system = ActorSystem(name: "PingPong")
 let pong:ActorRef = system.actorOf(name:"pong", Pong.init)
 ``` 
+
 `actorOf` returns an `actorRef` pointing to the real Pong actor. The **Actor**
 and **ActorRef** concepts are directly borrowed from AKKA. **ActorRef** is 
 exposed to the users while the logic of the actor is hidden inside the **Actor**.
@@ -140,6 +143,7 @@ the application will terminate immediately. We wait 5 seconds in main thread,
 and shut down the actor system by calling `system.shutdown()`, which is a 
 non-blocking call. Then we call `system.wait()` until the whole system is 
 completely shut down. 
+
 ```
 ping ! Ball(sender:nil)
 Thread.sleep(forTimeInterval: 5)
@@ -198,6 +202,7 @@ Thread.sleep(forTimeInterval: 5)
 system.shutdown()
 system.wait()
 ```
+
 Compile it and run
 
 ```bash
