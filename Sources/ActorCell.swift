@@ -9,6 +9,7 @@
 
 import Foundation
 import Dispatch
+import SWORDS
 
 
 /// ActorCell is the container of an Actor instance. The actor cell and instance
@@ -56,10 +57,17 @@ public class ActorCell : CustomStringConvertible {
     }
 
     /// A lock for this actorCell. Used to protect Children update
-    let lock = NSLock() //A lock to protect children update
+    //let lock = NSLock() //A lock to protect children update
+    //func sync<T>(_ closure: () -> T) -> T {
+    //    self.lock.lock()
+    //    defer { self.lock.unlock() }
+    //    return closure()
+    //}
+
+    let lock = DispatchSemaphore(value: 1)
     func sync<T>(_ closure: () -> T) -> T {
-        self.lock.lock()
-        defer { self.lock.unlock() }
+        self.lock.wait()
+        defer { self.lock.signal() }
         return closure()
     }
 
@@ -219,12 +227,36 @@ public class ActorCell : CustomStringConvertible {
         return childrenRefs
     }
 
+    ///Has the mailbox
+    let mailbox = FastQueue<Actor.Message>(initSize:8)
+    var notRunning = true
 
     /// The basic method to send a message to an actor
     final public func tell(_ msg : Actor.Message) -> Void {
-        underlyingQueue.async {
-            self.systemReceive(msg)
+        lock.wait()
+        mailbox.enqueue(item:msg)
+        if (notRunning) {
+            notRunning = false
+            underlyingQueue.async {
+                self.runTask()
+            }
         }
+        lock.signal()
+        /*underlyingQueue.async {
+            self.systemReceive(msg)
+        }*/
+    }
+
+    final private func runTask() {
+        lock.wait()
+        while let msg = mailbox.dequeue() {
+            //now still in running
+            lock.signal()
+            self.systemReceive(msg)
+            lock.wait()
+        }
+        notRunning = true
+        lock.signal()
     }
 
 

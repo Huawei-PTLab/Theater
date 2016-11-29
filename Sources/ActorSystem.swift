@@ -33,6 +33,8 @@ public class ActorSystem : CustomStringConvertible {
     /// Interal semaphore to control the life cycle
     let semaphore:DispatchSemaphore
 
+    /// Internal single queue
+    let cQueue = DispatchQueue(label: "cQueue", attributes: .concurrent)
 
     /// Create the actor system
     /// - parameter name: The name of the actor system
@@ -57,7 +59,8 @@ public class ActorSystem : CustomStringConvertible {
 
     /// Used for a child actor cell to get an exeuction queue
     internal func assignQueue() -> DispatchQueue {
-        return dispatcher.assignQueue()
+        //return dispatcher.assignQueue()
+        return cQueue;
     }
 
 
