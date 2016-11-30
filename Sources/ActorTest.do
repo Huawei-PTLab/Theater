@@ -1,6 +1,10 @@
 import Glibc
 import Foundation
 
+// ----------------------------------------------------------------
+// General data structure (Queue, Stack, Hashtable) code begins here
+// ----------------------------------------------------------------
+
 public protocol Queue {
     associatedtype T
     mutating func enqueue(item:T)
@@ -78,211 +82,6 @@ public struct Stack<A> {
     }
 
     public func head() -> A? { return self.array.last }
-}
-
-public protocol Message : CustomStringConvertible {
-    var sender: ActorRef? { get set }
-}
-
-public struct Harakiri : Message {
-    public var sender: ActorRef?
-
-    public init(sender: ActorRef?) { self.sender = sender }
-
-    public var description: String { return "<Harakiri>" }
-}
-
-public struct PoisonPill : Message {
-    public var sender: ActorRef?
-
-    public init(sender: ActorRef?) { self.sender = sender }
-
-    public var description: String { return "<PoisonPill>" }
-}
-
-public typealias Receive = (Message) -> (Void)
-
-public protocol Actor {
-    var statesStack: Stack<(String,Receive)>* { get set }
-    var mailbox: FastQueue<Message> { get set }
-    var inTaskQueue: Bool { get set }
-    var _ref: ActorRef? { get set }
-
-    mutating func processMessage()
-    func stop()
-    mutating func stop(_ actorRef: inout ActorRef)
-    mutating func actorOf(_ actorInstance: Actor*, name: String) -> ActorRef
-    func become(_ name: String, state: @escaping Receive, discardOld: Bool)
-    mutating func systemReceive(_ realMsg: Message)
-    mutating func receive(_ msg: Message)
-    mutating func tell(_ msg: Message)
-    func preStart()
-    func willStop()
-}
-
-extension Actor {
-    internal mutating func processMessage() {
-        while let msg = mailbox.dequeue() {
-            systemReceive(msg)
-        }
-        inTaskQueue = false
-    }
-
-    public var this: ActorRef {
-        get {
-            if let ref = self._ref {
-                return ref
-            } else {
-                print("ERROR: nil _ref, terminating system")
-                exit(1)
-            }
-        }
-        set { self._ref = newValue }
-    }
-
-    public func stop() { this ! Harakiri(sender: nil) }
-
-    public mutating func stop(_ actorRef: inout ActorRef) {
-        let path = actorRef.path.asString
-        self.this.children.removeValue(forKey: path)
-        this.context.allActors.removeValue(forKey: path)
-        //actorRef.actorInstance = nil
-    }
-
-    public mutating func actorOf(_ actorInstance: Actor*, name: String) -> ActorRef {
-        let completePath = "\(self.this.path.asString)/\(name)"
-        let ref = ActorRef(path: ActorPath(path: completePath),
-                           actorInstance: actorInstance,
-                           context: this.context)
-        actorInstance._ref = ref
-        self.this.children[completePath] = ref
-        this.context.allActors[completePath] = ref
-        actorInstance.preStart()
-        return ref
-    }
-
-    public func become(_ name: String, state: @escaping Receive, discardOld: Bool) {
-        if discardOld {
-            let _ = self.statesStack.replaceHead(element: (name, state))
-        } else {
-            self.statesStack.push(element: (name, state))
-        }
-    }
-
-    public mutating func systemReceive(_ realMsg: Message) {
-        switch realMsg {
-        case is Harakiri, is PoisonPill:
-            self.willStop()
-            self.this.children.forEach({ (_,actorRef) in
-                actorRef ! Harakiri(sender: this)
-            })
-        default:
-            if let (name, state): (String, Receive) = self.statesStack.head() {
-                #if DEBUG
-                print("Sending message to state \(name)")
-                #endif
-                state(realMsg)
-            } else {
-                self.receive(realMsg)
-            }
-        }
-    }
-
-    public mutating func receive(_ msg: Message) { print("Default receive") }
-
-    public mutating func tell(_ msg: Message) {
-        mailbox.enqueue(item:msg)
-        if !inTaskQueue {
-            inTaskQueue = true
-            processMessage()
-        }
-    }
-
-    public func preStart() { }
-
-    public func willStop() { }
-}
-
-struct Supervisor : Actor {
-    var statesStack: Stack<(String,Receive)>* = Stack*()
-    var mailbox = FastQueue<Message>(initSize: 10)
-    var inTaskQueue = false
-    var _ref: ActorRef?
-}
-
-public struct ActorPath {
-    public let asString: String
-
-    public init(path: String) { self.asString = path }
-}
-
-public struct ActorRef : CustomStringConvertible {
-    public var description: String {
-        return "<\(type(of: self)): \(path.asString)>"
-    }
-
-    internal var context: ActorSystem*
-    internal var children = Hashtable<String, ActorRef>()
-    public let path: ActorPath
-    internal var actorInstance: Actor*
-
-    internal init(path: ActorPath, actorInstance: Actor*, context: ActorSystem*) {
-        self.path = path
-        self.actorInstance = actorInstance
-        self.context = context
-        #if DEBUG
-        print("Creating Actor \(path.asString)")
-        #endif
-    }
-
-    public func tell(_ msg: Message) {
-        actorInstance.tell(msg)
-    }
-
-    internal func stop(_ ref: inout ActorRef) {
-        actorInstance.stop(&ref)
-    }
-}
-
-infix operator ! : SendMessagePrecedence
-precedencegroup SendMessagePrecedence { associativity : left }
-
-@_transparent
-public func !(actorRef: ActorRef, msg: Message) {
-    actorRef.tell(msg)
-}
-
-public struct ActorSystem {
-    var supervisor: ActorRef!
-
-    public let name: String
-    public var allActors = [String : ActorRef]()
-
-    public init(name: String) { self.name = name }
-
-    public func stop(_ actorRef: ActorRef) { }
-
-    public func stop() {
-        supervisor ! Harakiri(sender: nil)
-        print("ActorSystem \(name) terminated")
-    }
-
-    public func actorOf(_ actorInstance: Actor*, name: String) -> ActorRef {
-        return supervisor.actorInstance.actorOf(actorInstance, name: name)
-    }
-
-    public static func create(_ name: String) -> ActorSystem* {
-        let system = ActorSystem*(name: name)
-        // This fails because we can't convert S* to P*
-        //let supervisorActor = Supervisor*()
-        let supervisorActor = SharePointer<Actor>(Supervisor())
-        let ref = ActorRef(path: ActorPath(path: "\(name)"),
-                           actorInstance: supervisorActor,
-                           context: system)
-        supervisorActor._ref = ref
-        system.supervisor = ref
-        return system
-    }
 }
 
 public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
@@ -539,6 +338,213 @@ public struct Hashtable<K: Hashable, V> : CustomStringConvertible {
 }
 
 // ----------------------------------------------------------------
+// Theater library code begins here
+// ----------------------------------------------------------------
+
+public protocol Message : CustomStringConvertible {
+    var sender: ActorRef? { get set }
+}
+
+public struct Harakiri : Message {
+    public var sender: ActorRef?
+
+    public init(sender: ActorRef?) { self.sender = sender }
+
+    public var description: String { return "<Harakiri>" }
+}
+
+public struct PoisonPill : Message {
+    public var sender: ActorRef?
+
+    public init(sender: ActorRef?) { self.sender = sender }
+
+    public var description: String { return "<PoisonPill>" }
+}
+
+public typealias Receive = (Message) -> (Void)
+
+public protocol Actor {
+    var statesStack: Stack<(String,Receive)>* { get set }
+    var mailbox: FastQueue<Message> { get set }
+    var inTaskQueue: Bool { get set }
+    var _ref: ActorRef? { get set }
+
+    mutating func processMessage()
+    func stop()
+    mutating func stop(_ actorRef: inout ActorRef)
+    mutating func actorOf(_ actorInstance: Actor*, name: String) -> ActorRef
+    func become(_ name: String, state: @escaping Receive, discardOld: Bool)
+    mutating func systemReceive(_ realMsg: Message)
+    mutating func receive(_ msg: Message)
+    mutating func tell(_ msg: Message)
+    func preStart()
+    func willStop()
+}
+
+extension Actor {
+    internal mutating func processMessage() {
+        while let msg = mailbox.dequeue() {
+            systemReceive(msg)
+        }
+        inTaskQueue = false
+    }
+
+    public var this: ActorRef {
+        get {
+            if let ref = self._ref {
+                return ref
+            } else {
+                print("ERROR: nil _ref, terminating system")
+                exit(1)
+            }
+        }
+        set { self._ref = newValue }
+    }
+
+    public func stop() { this ! Harakiri(sender: nil) }
+
+    public mutating func stop(_ actorRef: inout ActorRef) {
+        let path = actorRef.path.asString
+        this.children.removeValue(forKey: path)
+        this.context.allActors.removeValue(forKey: path)
+        //actorRef.actorInstance = nil
+    }
+
+    public mutating func actorOf(_ actorInstance: Actor*, name: String) -> ActorRef {
+        let completePath = "\(this.path.asString)/\(name)"
+        let ref = ActorRef(path: ActorPath(path: completePath),
+                           actorInstance: actorInstance,
+                           context: this.context)
+        actorInstance._ref = ref
+        this.children[completePath] = ref
+        this.context.allActors[completePath] = ref
+        actorInstance.preStart()
+        return ref
+    }
+
+    public func become(_ name: String, state: @escaping Receive, discardOld: Bool) {
+        if discardOld {
+            let _ = self.statesStack.replaceHead(element: (name, state))
+        } else {
+            self.statesStack.push(element: (name, state))
+        }
+    }
+
+    public mutating func systemReceive(_ realMsg: Message) {
+        switch realMsg {
+        case is Harakiri, is PoisonPill:
+            willStop()
+            this.children.forEach({ (_,actorRef) in
+                actorRef ! Harakiri(sender: this)
+            })
+        default:
+            if let (name, state): (String, Receive) = self.statesStack.head() {
+                #if DEBUG
+                print("Sending message to state \(name)")
+                #endif
+                state(realMsg)
+            } else {
+                self.receive(realMsg)
+            }
+        }
+    }
+
+    public mutating func receive(_ msg: Message) { }
+
+    public mutating func tell(_ msg: Message) {
+        mailbox.enqueue(item:msg)
+        if !inTaskQueue {
+            inTaskQueue = true
+            processMessage()
+        }
+    }
+
+    public func preStart() { }
+
+    public func willStop() { }
+}
+
+public struct ActorPath {
+    public let asString: String
+
+    public init(path: String) { self.asString = path }
+}
+
+public struct ActorRef : CustomStringConvertible {
+    public var description: String {
+        return "<\(type(of: self)): \(path.asString)>"
+    }
+
+    internal let context: ActorSystem*
+    internal var children = Hashtable<String, ActorRef>()
+    public let path: ActorPath
+    internal var actorInstance: Actor*
+
+    internal init(path: ActorPath, actorInstance: Actor*, context: ActorSystem*) {
+        self.path = path
+        self.actorInstance = actorInstance
+        self.context = context
+        #if DEBUG
+        print("Creating Actor \(path.asString)")
+        #endif
+    }
+
+    public func tell(_ msg: Message) {
+        actorInstance.tell(msg)
+    }
+
+    internal func stop(_ ref: inout ActorRef) { actorInstance.stop(&ref) }
+}
+
+infix operator ! : SendMessagePrecedence
+precedencegroup SendMessagePrecedence { associativity : left }
+
+@_transparent
+public func !(actorRef: ActorRef, msg: Message) {
+    actorRef.tell(msg)
+}
+
+struct Supervisor : Actor {
+    var statesStack: Stack<(String,Receive)>* = Stack*()
+    var mailbox = FastQueue<Message>(initSize: 10)
+    var inTaskQueue = false
+    var _ref: ActorRef?
+}
+
+public struct ActorSystem {
+    var supervisor: ActorRef!
+
+    public let name: String
+    public var allActors = [String : ActorRef]()
+
+    public init(name: String) { self.name = name }
+
+    public func stop(_ actorRef: ActorRef) { }
+
+    public func stop() {
+        supervisor ! Harakiri(sender: nil)
+        print("ActorSystem \(name) terminated")
+    }
+
+    public func actorOf(_ actorInstance: Actor*, name: String) -> ActorRef {
+        return supervisor.actorInstance.actorOf(actorInstance, name: name)
+    }
+
+    public static func create(_ name: String) -> ActorSystem* {
+        let system = ActorSystem*(name: name)
+        // This fails because we can't convert S* to P*
+        //let supervisorActor = Supervisor*()
+        let supervisorActor = SharePointer<Actor>(Supervisor())
+        let ref = ActorRef(path: ActorPath(path: "\(name)"),
+                           actorInstance: supervisorActor,
+                           context: system)
+        supervisorActor._ref = ref
+        system.supervisor = ref
+        return system
+    }
+}
+
+// ----------------------------------------------------------------
 // Test code begins here
 // ----------------------------------------------------------------
 
@@ -650,7 +656,7 @@ struct Client : Actor {
         switch msg {
         case let request as Request:
             var req = Request(client: request.client, server: request.server,
-                              timestamp: request.timestamp, sender: self.this)
+                              timestamp: request.timestamp, sender: this)
             gettimeofday(&req.timestamp, nil)
             self.server ! req
             self.become("waitResponse", state: self.waitResponse, discardOld: true)
@@ -667,10 +673,10 @@ struct Client : Actor {
         switch msg {
         case let response as Response:
             let latency = latencyFrom(response.timestamp)
-            let record = RecordResult(client: response.client, latency: latency, sender: self.this)
+            let record = RecordResult(client: response.client, latency: latency, sender: this)
             self.monitor ! record
 
-            let notification = Notification(client: response.client, server: response.server, sender: self.this)
+            let notification = Notification(client: response.client, server: response.server, sender: this)
             self.server ! notification
             #if DEBUG
             print("\(Client.self).\(#function): recv \(response) from \(response.sender)")
@@ -724,7 +730,7 @@ struct Server : Actor {
             print("\(Server.self).\(#function): recv \(notification) from \(notification.sender)")
             #endif
             if let container = containerp {
-                let poisonPill = PoisonPill(sender: self.this)
+                let poisonPill = PoisonPill(sender: this)
                 container ! notification
                 container ! poisonPill
                 #if DEBUG
@@ -756,7 +762,7 @@ struct Container : Actor {
             print("\(Container.self).\(#function): client=\(request.client) server=\(request.server), timestamp=\(request.timestamp)")
             print("latency till container sending to client: \(latencyFrom(request.timestamp))")
             #endif
-            let response = Response(client: request.client, server: request.server, timestamp: request.timestamp, sender: self.this)
+            let response = Response(client: request.client, server: request.server, timestamp: request.timestamp, sender: this)
             if let sender = request.sender {
                 sender ! response
                 self.become("waitNotification", state: self.waitNotification, discardOld: true)
