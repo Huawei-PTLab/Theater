@@ -11,6 +11,7 @@ import XCTest
 @testable import TheaterTests
 
 XCTMain([
+     testCase(ActorBenchTests.allTests),
      testCase(SelectActorTests.allTests),
      testCase(TheaterTests.allTests),
      testCase(SupervisionTests.allTests),

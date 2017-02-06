@@ -8,7 +8,7 @@
 
 import Dispatch 
 import Foundation
-import SWORDS
+import SwiftDataStructure 
 
 #if os(OSX) || os(iOS)
 import Darwin
