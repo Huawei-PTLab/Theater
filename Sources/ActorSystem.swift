@@ -25,42 +25,48 @@ public class ActorSystem : CustomStringConvertible {
     }
 
     /// The dispatcher used for the whole system
-    private var dispatcher: Dispatcher
+    /// It's visible to Actor
+    let dispatcherType: DispatcherType
 
     /// The rootRef of this system
     private let userRef:ActorRef
 
-    /// Interal semaphore to control the life cycle
+    /// Interal semaphore to control the whole actor system's life cycle
     let semaphore:DispatchSemaphore
 
     /// Internal single queue
+    let sQueue = DispatchQueue(label: "sQueue")
+
+    /// Internal concurrent queue
     let cQueue = DispatchQueue(label: "cQueue", attributes: .concurrent)
 
     /// Create the actor system
     /// - parameter name: The name of the actor system
-    /// - parameter dispatcher: The dispatcher used for the actor system. 
-    ///   Default is DefaultDispatcher
-    public init(name : String, dispatcher: Dispatcher = DefaultDispatcher()) {
-
+    /// - parameter dispatcher: The dispatcher used for the actor system. The
+    ///     system actors, like "/user", "/deadletter" will use the policy.
+    ///   Default is ConcurrentDispatcher
+    public init(name : String,
+                dispatcherType: DispatcherType = DispatcherType.Concurrent) {
         self.name = name
-        self.dispatcher = dispatcher
+
+        if dispatcherType == DispatcherType.System {
+            print("[WARNING] ActorSystem's dispatcher type cannot be System.")
+            self.dispatcherType = .Concurrent
+        } else {
+            self.dispatcherType = dispatcherType
+        }
 
         userRef = ActorRef(path: ActorPath(path:"/user"))
         semaphore = DispatchSemaphore(value: 0)
         let userContext = ActorCell(system:self,
                                     parent:nil,
                                     actorConstructor: Actor.init,
-                                    actorRef:userRef)
+                                    actorRef:userRef,
+                                    dispatcherType:self.dispatcherType)
         userRef.actorCell = userContext
         // Later we can create an actor with special error handling mechanism
         userContext.actor = Actor(context:userContext)
 
-    }
-
-    /// Used for a child actor cell to get an exeuction queue
-    internal func assignQueue() -> DispatchQueue {
-        //return dispatcher.assignQueue()
-        return cQueue;
     }
 
 

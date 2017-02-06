@@ -9,7 +9,6 @@
 
 import Foundation
 import Dispatch
-import SWORDS
 
 
 /// ActorCell is the container of an Actor instance. The actor cell and instance
@@ -42,7 +41,7 @@ public class ActorCell : CustomStringConvertible {
     /// The following fields are used to run the actor
 
     /// The mailbox and the exectuor
-    let underlyingQueue:DispatchQueue
+    var dispacher:Dispatcher = EmptyDispatcher()
 
     /// Flag to indicate the actor has started the termination process
     private var dying = false
@@ -64,7 +63,7 @@ public class ActorCell : CustomStringConvertible {
     //    return closure()
     //}
 
-    let lock = DispatchSemaphore(value: 1)
+    let lock: DispatchSemaphore
     func sync<T>(_ closure: () -> T) -> T {
         self.lock.wait()
         defer { self.lock.signal() }
@@ -75,22 +74,49 @@ public class ActorCell : CustomStringConvertible {
     public init(system:ActorSystem,
                 parent:ActorRef?,
                 actorConstructor: @escaping (ActorCell)->Actor,
-                actorRef:ActorRef
+                actorRef:ActorRef,
+                dispatcherType:DispatcherType = DispatcherType.System
                 ) {
         self.parent = parent
         self.actorConstructor = actorConstructor
         self.this = actorRef
         self.system = system
-        self.underlyingQueue = system.assignQueue()
+
+        var dispatcherType = dispatcherType
+        if dispatcherType == DispatcherType.System {
+            dispatcherType = system.dispatcherType
+            // Now dispatcherType cannot be .System anymore
+        }
+        let lock = DispatchSemaphore(value: 1)
+        self.lock = lock
+
+        switch dispatcherType {
+        case .Sequential:
+            self.dispacher = SequentialDispatcher(task:self.systemReceive)
+        case .Individual:
+            self.dispacher = IndividualDispatcher(task:self.systemReceive)
+        case .Share:
+            self.dispacher = ShareDispatcher(task: self.systemReceive,
+                                             queue: system.sQueue)
+        case .Concurrent:
+            fallthrough
+        case .System:
+            self.dispacher = ConcurrentDispatcher(task: self.systemReceive,
+                                             queue: system.cQueue,
+                                             lock:lock)
+        }
     }
 
     /// Create a new child actor from an actor constructor with a name in the
     /// context
     /// Parameter name: the name of the actor. If not assigned, an UUID will 
     ///   be used.
+    /// Parameter dispatcher: The type of the dispather to use. If not assigned,
+    ///   The concurrent dispather will be used.
     /// Parameter actorConstructor: how to create the actor, the type must be
     ///  `(ActorCell)->Actor`. It could be an actor's constructor or a closure.
     public func actorOf(name: String = NSUUID().uuidString,
+                        dispatcherType: DispatcherType = DispatcherType.System,
                         _ actorConstructor: @escaping (ActorCell)->Actor
                         ) -> ActorRef {
         var name = name
@@ -227,38 +253,10 @@ public class ActorCell : CustomStringConvertible {
         return childrenRefs
     }
 
-    ///Has the mailbox
-    let mailbox = FastQueue<Actor.Message>(initSize:8)
-    var notRunning = true
-
     /// The basic method to send a message to an actor
     final public func tell(_ msg : Actor.Message) -> Void {
-        lock.wait()
-        mailbox.enqueue(item:msg)
-        if (notRunning) {
-            notRunning = false
-            underlyingQueue.async {
-                self.runTask()
-            }
-        }
-        lock.signal()
-        /*underlyingQueue.async {
-            self.systemReceive(msg)
-        }*/
+        self.dispacher.put(msg)
     }
-
-    final private func runTask() {
-        lock.wait()
-        while let msg = mailbox.dequeue() {
-            //now still in running
-            lock.signal()
-            self.systemReceive(msg)
-            lock.wait()
-        }
-        notRunning = true
-        lock.signal()
-    }
-
 
     /// systemReceive is the entry point to handles all kinds of messages.
     /// If the message is system related, the message will be processed here.
@@ -365,16 +363,5 @@ public class ActorCell : CustomStringConvertible {
             }
         }
     }
-
-    /**
-     Schedule Once is a timer that executes the code in block after seconds
-     */
-    final public func scheduleOnce(_ seconds: Int, block : @escaping (Void) -> Void) {
-        //dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(seconds * Double(NSEC_PER_SEC))), self.mailbox.underlyingQueue!, block)
-        underlyingQueue.asyncAfter(deadline: DispatchTime.now() + DispatchTimeInterval.seconds(seconds),
-                                   execute: block)
-    }
-
-
 }
 

@@ -257,7 +257,7 @@ class Monitor: Actor {
 
 
 func simpleCase(count:Int) {
-    let system = ActorSystem(name: systemName, dispatcher:ShareDispatcher(queues:1))
+    let system = ActorSystem(name: systemName)
     let server = system.actorOf(name: serverName, Server.init)
     let monitor = system.actorOf(name: monitorName, Monitor.init)
     for i in 0..<count {
