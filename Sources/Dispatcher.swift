@@ -10,23 +10,6 @@ import Dispatch
 import Foundation
 import SwiftDataStructure 
 
-#if os(OSX) || os(iOS)
-import Darwin
-#elseif os(Linux)
-import Glibc
-#endif
-
-
-/// Wrapper function for both Linux and Mac
-func randomInt()->Int {
-    #if os(Linux)
-    return random()
-    #else
-    return Int(arc4random())
-    #endif
-}
-
-
 public enum DispatcherType {
     case Sequential ///Pure sequential, using a single global queue
     case Individual ///Each Actor has its own GCD sequential queue

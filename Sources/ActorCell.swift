@@ -63,6 +63,7 @@ public class ActorCell : CustomStringConvertible {
     //    return closure()
     //}
 
+    /// A lock for this actorCell. Used to protect Children update
     let lock: DispatchSemaphore
     func sync<T>(_ closure: () -> T) -> T {
         self.lock.wait()
